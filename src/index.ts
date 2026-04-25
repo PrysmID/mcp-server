@@ -12,7 +12,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { PrysmidClient } from "./client.js";
 import { loadConfig } from "./config.js";
 import { makeLogger } from "./logger.js";
-import { registerAll, type ToolDef } from "./tools/registry.js";
+import { registerAll } from "./tools/registry.js";
 import { tools as curatedTools } from "./tools/curated.js";
 import { tools as workspaceTools } from "./tools/workspaces.js";
 
@@ -44,10 +44,7 @@ export async function main(): Promise<void> {
     version: readVersion(),
   });
 
-  const allTools: ReadonlyArray<ToolDef<Record<string, never>>> = [
-    ...workspaceTools,
-    ...curatedTools,
-  ] as unknown as ReadonlyArray<ToolDef<Record<string, never>>>;
+  const allTools = [...workspaceTools, ...curatedTools];
 
   registerAll(server, { client, log }, allTools);
 

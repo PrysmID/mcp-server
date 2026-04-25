@@ -41,10 +41,16 @@ export function defineTool<I extends z.ZodRawShape>(t: ToolDef<I>): ToolDef<I> {
   return t;
 }
 
+// `ToolDef<any>` here intentionally — the array is heterogeneous (each tool
+// has its own input shape) and the SDK's registerTool only cares about the
+// runtime Zod object, not compile-time type inference. Without `any` there's
+// no single ZodRawShape that satisfies every entry simultaneously.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function registerAll(
   server: McpServer,
   ctx: ToolContext,
-  tools: ReadonlyArray<ToolDef<z.ZodRawShape>>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tools: ReadonlyArray<ToolDef<any>>,
 ): void {
   for (const tool of tools) {
     server.registerTool(
