@@ -46,20 +46,36 @@ claude mcp add prysmid -- npx -y @prysmid/mcp
 
 (or the equivalent for your agent — Cursor, Continue, etc.)
 
-For now, auth is bearer-token-only via env var:
+## Authentication
+
+Three modes, resolved in this order on every startup:
+
+1. **Static bearer** — set `PRYSMID_API_TOKEN`. Best for CI / service accounts:
+   ```bash
+   PRYSMID_API_TOKEN=ptkn_… npx -y @prysmid/mcp
+   ```
+2. **Cached device-flow token** — if a previous run completed device flow,
+   the access token lives at:
+   - Linux/macOS: `$XDG_CONFIG_HOME/prysmid-mcp/token.json` (default `~/.config/prysmid-mcp/token.json`)
+   - Windows: `%APPDATA%\prysmid-mcp\token.json`
+
+   It's reused until ~60s before expiry.
+3. **Interactive device flow** — first run, no token, attached TTY: the
+   server prints a code + verification URL to stderr, you confirm in a
+   browser, the token is cached, and the server starts.
+
+To clear the cached token (sign out):
 
 ```bash
-PRYSMID_API_TOKEN=ptkn_… npx -y @prysmid/mcp
+npx -y @prysmid/mcp logout
 ```
-
-OAuth device flow with token caching at `~/.config/prysmid-mcp/token.json` (Unix) or `%APPDATA%/prysmid-mcp/token.json` (Windows) is queued for a follow-up release.
 
 ### Alternative: install directly from GitHub
 
 Useful for testing a branch or a specific commit:
 
 ```bash
-claude mcp add prysmid -- npx -y github:PrysmID/mcp-server#v0.2.0
+claude mcp add prysmid -- npx -y github:PrysmID/mcp-server#v0.3.0
 claude mcp add prysmid -- npx -y github:PrysmID/mcp-server          # tip of main
 ```
 
@@ -70,6 +86,7 @@ claude mcp add prysmid -- npx -y github:PrysmID/mcp-server          # tip of mai
 | `PRYSMID_API_BASE` | `https://api.prysmid.com` | Override for self-hosted Prysmid |
 | `PRYSMID_API_TOKEN` | — | Static bearer (skip device flow) |
 | `PRYSMID_MCP_LOG_LEVEL` | `info` | `debug` for verbose tool tracing |
+| `PRYSMID_FORCE_DEVICE_FLOW` | — | Set to any non-empty value to run device flow even when stderr is not a TTY |
 
 ## Status
 

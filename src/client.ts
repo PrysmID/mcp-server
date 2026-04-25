@@ -29,12 +29,23 @@ export class PrysmidClient {
   constructor(
     private readonly cfg: Config,
     private readonly log: Logger,
+    /**
+     * Optional override. When set (e.g. resolved via device flow + token cache),
+     * takes precedence over `cfg.apiToken`. Keeps the env-driven path for the
+     * `PRYSMID_API_TOKEN=…` mode untouched.
+     */
+    private readonly tokenOverride: string | null = null,
   ) {}
 
+  private get effectiveToken(): string | null {
+    return this.tokenOverride ?? this.cfg.apiToken;
+  }
+
   async request<T = unknown>(path: string, opts: RequestOptions = {}): Promise<T> {
-    if (!this.cfg.apiToken) {
+    const token = this.effectiveToken;
+    if (!token) {
       throw new PrysmidApiError(
-        "No PRYSMID_API_TOKEN configured. Set the env var or run device-flow login.",
+        "No Prysmid API token. Set PRYSMID_API_TOKEN or complete device-flow login.",
         401,
         "",
         "auth.no_token",
@@ -50,7 +61,7 @@ export class PrysmidClient {
 
     const method = opts.method ?? "GET";
     const headers: Record<string, string> = {
-      Authorization: `Bearer ${this.cfg.apiToken}`,
+      Authorization: `Bearer ${token}`,
       Accept: "application/json",
     };
     if (opts.body !== undefined) headers["Content-Type"] = "application/json";

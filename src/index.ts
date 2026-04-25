@@ -21,9 +21,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
+import { deviceFlow } from "./auth.js";
 import { PrysmidClient } from "./client.js";
-import { loadConfig } from "./config.js";
-import { makeLogger } from "./logger.js";
+import { loadConfig, type Config } from "./config.js";
+import { makeLogger, type Logger } from "./logger.js";
+import { clearToken, loadToken, saveToken } from "./tokenStore.js";
 import { registerAll, type ToolDef } from "./tools/registry.js";
 import { tools as appsTools } from "./tools/apps.js";
 import { tools as billingTools } from "./tools/billing.js";
@@ -105,10 +107,64 @@ export function composeToolset(): ToolDef<any>[] {
   return [...handwrittenAndCurated, ...filteredGenerated];
 }
 
+/**
+ * Resolve the bearer token to use for API calls. Resolution order:
+ *   1. PRYSMID_API_TOKEN env var (CI / static service tokens)
+ *   2. Cached device-flow token at ~/.config/prysmid-mcp/token.json (or %APPDATA% on Windows)
+ *   3. Run interactive device flow (browser + user code) and save to cache
+ *
+ * Returns the token plus the human-readable mode string for logs.
+ */
+export async function resolveAuth(
+  cfg: Config,
+  log: Logger,
+): Promise<{ token: string | null; mode: "bearer" | "cached" | "deviceflow" | "none" }> {
+  if (cfg.apiToken) return { token: cfg.apiToken, mode: "bearer" };
+
+  const cached = loadToken(cfg.apiBase);
+  if (cached) return { token: cached.accessToken, mode: "cached" };
+
+  if (!process.stderr.isTTY && !process.env.PRYSMID_FORCE_DEVICE_FLOW) {
+    log.warn(
+      "no PRYSMID_API_TOKEN and no cached token; stderr is not a TTY so refusing to start interactive device flow. Set PRYSMID_API_TOKEN, run `npx -y @prysmid/mcp` once interactively to populate the cache, or set PRYSMID_FORCE_DEVICE_FLOW=1 to override.",
+    );
+    return { token: null, mode: "none" };
+  }
+
+  let result;
+  try {
+    result = await deviceFlow({ apiBase: cfg.apiBase, log });
+  } catch (err) {
+    log.error("device flow login failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    clearToken();
+    return { token: null, mode: "none" };
+  }
+
+  const expiresAt =
+    Math.floor(Date.now() / 1000) + (result.expiresIn ?? 3600);
+  saveToken({
+    apiBase: cfg.apiBase,
+    accessToken: result.accessToken,
+    refreshToken: result.refreshToken,
+    expiresAt,
+  });
+  return { token: result.accessToken, mode: "deviceflow" };
+}
+
 export async function main(): Promise<void> {
+  // `prysmid-mcp logout` — small subcommand that just clears the cache.
+  if (process.argv[2] === "logout") {
+    clearToken();
+    process.stderr.write("prysmid-mcp: logged out (token cache cleared)\n");
+    return;
+  }
+
   const cfg = loadConfig();
   const log = makeLogger(cfg);
-  const client = new PrysmidClient(cfg, log);
+  const auth = await resolveAuth(cfg, log);
+  const client = new PrysmidClient(cfg, log, auth.token);
 
   const server = new McpServer({
     name: SERVER_NAME,
@@ -122,7 +178,7 @@ export async function main(): Promise<void> {
   log.info(`prysmid-mcp starting`, {
     apiBase: cfg.apiBase,
     tools: allTools.length,
-    authMode: cfg.apiToken ? "bearer" : "none",
+    authMode: auth.mode,
   });
 
   const transport = new StdioServerTransport();
