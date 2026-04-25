@@ -13,7 +13,13 @@ import { PrysmidClient } from "./client.js";
 import { loadConfig } from "./config.js";
 import { makeLogger } from "./logger.js";
 import { registerAll } from "./tools/registry.js";
+import { tools as appsTools } from "./tools/apps.js";
+import { tools as billingTools } from "./tools/billing.js";
+import { tools as brandingTools } from "./tools/branding.js";
 import { tools as curatedTools } from "./tools/curated.js";
+import { tools as idpsTools } from "./tools/idps.js";
+import { tools as loginPolicyTools } from "./tools/login_policy.js";
+import { tools as usersTools } from "./tools/users.js";
 import { tools as workspaceTools } from "./tools/workspaces.js";
 
 import { readFileSync } from "node:fs";
@@ -44,7 +50,16 @@ export async function main(): Promise<void> {
     version: readVersion(),
   });
 
-  const allTools = [...workspaceTools, ...curatedTools];
+  const allTools = [
+    ...workspaceTools,
+    ...appsTools,
+    ...idpsTools,
+    ...loginPolicyTools,
+    ...usersTools,
+    ...brandingTools,
+    ...billingTools,
+    ...curatedTools,
+  ];
 
   registerAll(server, { client, log }, allTools);
 

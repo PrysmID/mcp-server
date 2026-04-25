@@ -82,4 +82,121 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-export const tools = [setupPrysmidWorkspace] as const;
+export const enableGoogleLogin = defineTool({
+  name: "enable_google_login",
+  description:
+    "Add Google as an identity provider on a workspace and enable external IdPs in the login policy. Hands you a checklist if external IdPs were already disabled — agent should confirm before flipping that flag.",
+  inputShape: {
+    workspace: z.string().min(1),
+    google_client_id: z.string().min(1),
+    google_client_secret: z.string().min(1),
+    name: z.string().default("Google"),
+  },
+  handler: async (
+    { workspace, google_client_id, google_client_secret, name },
+    { client },
+  ) => {
+    const idp = await client.request(
+      `/v1/workspaces/${encodeURIComponent(workspace)}/idps`,
+      {
+        method: "POST",
+        body: {
+          provider: "google",
+          name,
+          config: {
+            client_id: google_client_id,
+            client_secret: google_client_secret,
+          },
+        },
+      },
+    );
+
+    // Force-enable external IdP toggle in case the workspace had it off.
+    await client.request(
+      `/v1/workspaces/${encodeURIComponent(workspace)}/login-policy`,
+      { method: "PATCH", body: { allow_external_idp: true } },
+    );
+
+    return { idp, login_policy: "allow_external_idp=true" };
+  },
+});
+
+interface SetupCheckItem {
+  ok: boolean;
+  name: string;
+  details?: string;
+}
+
+export const prysmidSetupCheck = defineTool({
+  name: "prysmid_setup_check",
+  description:
+    "Run a readiness checklist on a workspace: state=active, ≥1 OIDC app, ≥1 IdP OR password+register enabled, branding has a primary_color set, login_policy reasonable. Returns pass/fail per item plus a summary verdict.",
+  inputShape: {
+    workspace: z.string().min(1),
+  },
+  handler: async ({ workspace }, { client }) => {
+    const ws = (await client.request(
+      `/v1/workspaces/${encodeURIComponent(workspace)}`,
+    )) as { state: string; auth_domain?: string };
+    const apps = (await client.request(
+      `/v1/workspaces/${encodeURIComponent(workspace)}/apps`,
+    )) as unknown[];
+    const idps = (await client.request(
+      `/v1/workspaces/${encodeURIComponent(workspace)}/idps`,
+    )) as unknown[];
+    const policy = (await client.request(
+      `/v1/workspaces/${encodeURIComponent(workspace)}/login-policy`,
+    )) as {
+      allow_username_password?: boolean;
+      allow_register?: boolean;
+      allow_external_idp?: boolean;
+      force_mfa?: boolean;
+    };
+    const branding = (await client.request(
+      `/v1/workspaces/${encodeURIComponent(workspace)}/branding`,
+    )) as { primary_color?: string };
+
+    const checks: SetupCheckItem[] = [
+      {
+        ok: ws.state === "active",
+        name: "workspace_active",
+        details: `state=${ws.state}`,
+      },
+      {
+        ok: apps.length > 0,
+        name: "has_at_least_one_app",
+        details: `${apps.length} apps`,
+      },
+      {
+        ok:
+          idps.length > 0 ||
+          (policy.allow_username_password === true &&
+            policy.allow_register === true),
+        name: "users_can_sign_in",
+        details:
+          idps.length > 0
+            ? `${idps.length} idps`
+            : "no idps; must allow username+password+register",
+      },
+      {
+        ok: !!branding.primary_color,
+        name: "branding_primary_color_set",
+      },
+      {
+        ok: policy.force_mfa === true || idps.length > 0,
+        name: "auth_strength_reasonable",
+        details: policy.force_mfa
+          ? "force_mfa=true"
+          : "MFA off but external IdP present",
+      },
+    ];
+    const verdict = checks.every((c) => c.ok) ? "ready" : "incomplete";
+    return { verdict, checks };
+  },
+});
+
+export const tools = [
+  setupPrysmidWorkspace,
+  enableGoogleLogin,
+  prysmidSetupCheck,
+] as const;
