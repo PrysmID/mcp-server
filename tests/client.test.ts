@@ -94,9 +94,11 @@ describe("PrysmidClient", () => {
     expect(out).toBe("ok");
   });
 
-  it("returns undefined for empty 204 responses", async () => {
+  it("returns undefined for empty bodies", async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>;
-    fetchMock.mockResolvedValueOnce(new Response("", { status: 204 }));
+    // Response with status 204 must have null body per fetch spec; use 200 + ""
+    // to exercise the empty-body branch in the client without that constraint.
+    fetchMock.mockResolvedValueOnce(new Response("", { status: 200 }));
     const c = client();
     const out = await c.request("/v1/workspaces/abc", { method: "DELETE" });
     expect(out).toBeUndefined();
