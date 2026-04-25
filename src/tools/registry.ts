@@ -59,13 +59,14 @@ export function registerAll(
         description: tool.description,
         inputSchema: tool.inputShape,
       },
-      async (input) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      async (input: any) => {
         try {
           const result = await tool.handler(input, ctx);
           return {
             content: [
               {
-                type: "text",
+                type: "text" as const,
                 text:
                   typeof result === "string"
                     ? result
@@ -78,7 +79,9 @@ export function registerAll(
           ctx.log.error(`tool ${tool.name} failed`, { message });
           return {
             isError: true,
-            content: [{ type: "text", text: `error: ${message}` }],
+            content: [
+              { type: "text" as const, text: `error: ${message}` },
+            ],
           };
         }
       },
