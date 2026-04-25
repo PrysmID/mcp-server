@@ -73,9 +73,11 @@ export async function main(): Promise<void> {
   await server.connect(transport);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch((err) => {
-    process.stderr.write(`fatal: ${err instanceof Error ? err.stack : err}\n`);
-    process.exit(1);
-  });
-}
+// This module is only ever invoked as the package bin (MCP servers run as a
+// process per session). Cross-platform `import.meta.url === file://<argv[1]>`
+// is fragile (Windows backslash vs forward slash; symlinked paths) so we
+// just always boot.
+main().catch((err) => {
+  process.stderr.write(`fatal: ${err instanceof Error ? err.stack : err}\n`);
+  process.exit(1);
+});
