@@ -15,6 +15,29 @@ Exposes the full Prysmid platform API as MCP tools so an agent can:
 - manage SMTP overrides
 - query subscription / billing state
 
+## Tools
+
+The tool surface comes from three layers, merged at startup:
+
+1. **Hand-written** (`src/tools/*.ts`) — polished schemas with rich
+   descriptions for the operations agents reach for first
+   (`list_workspaces`, `add_idp`, `create_oidc_app`, …).
+2. **Curated** (`src/tools/curated.ts`) — multi-step orchestrators an
+   agent would otherwise have to assemble itself:
+   `setup_prysmid_workspace`, `enable_google_login`, `prysmid_setup_check`.
+3. **Auto-generated** (`src/tools/generated/*.ts`) — one tool per
+   remaining REST operation, emitted by `scripts/generate-tools.ts` from
+   the live OpenAPI spec at `https://api.prysmid.com/openapi.json`.
+   Hand-written names always win on collision; near-duplicates
+   (handwritten `add_idp` vs generated `create_idp`) are resolved by an
+   explicit alias map in `src/index.ts`.
+
+Regenerate after the API schema changes:
+
+```bash
+npm run gen-tools
+```
+
 ## Install
 
 ```bash
@@ -36,7 +59,7 @@ OAuth device flow with token caching at `~/.config/prysmid-mcp/token.json` (Unix
 Useful for testing a branch or a specific commit:
 
 ```bash
-claude mcp add prysmid -- npx -y github:PrysmID/mcp-server#v0.1.1
+claude mcp add prysmid -- npx -y github:PrysmID/mcp-server#v0.2.0
 claude mcp add prysmid -- npx -y github:PrysmID/mcp-server          # tip of main
 ```
 
