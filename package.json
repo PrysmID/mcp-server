@@ -1,0 +1,53 @@
+{
+  "name": "@prysmid/mcp",
+  "version": "0.1.0",
+  "description": "Official Prysmid MCP server — manage workspaces, apps OIDC, login policy, IdPs, branding, users from any MCP-compatible agent (Claude Code, Cursor, etc.)",
+  "license": "Apache-2.0",
+  "homepage": "https://prysmid.com",
+  "bugs": "https://github.com/PrysmID/mcp-server/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PrysmID/mcp-server.git"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "prysmid-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "gen-tools": "tsx scripts/generate-tools.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.5"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "prysmid",
+    "auth",
+    "oidc",
+    "zitadel",
+    "agents"
+  ]
+}

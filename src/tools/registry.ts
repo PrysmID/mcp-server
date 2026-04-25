@@ -1,0 +1,81 @@
+/**
+ * Tool registry — single place where every MCP tool lives. Each tool exports
+ * its input schema (Zod) + handler; `registerAll` wires them into the SDK.
+ *
+ * Two flavors of tools coexist:
+ *   - generated: 1:1 with REST endpoints, produced by `scripts/generate-tools.ts`
+ *     (lives under `tools/generated/*` once the script runs)
+ *   - curated: high-level orchestrators a human/agent actually wants to call,
+ *     e.g. `setup_prysmid_workspace(company_name)` that combines several
+ *     endpoints. These live under `tools/curated/*`.
+ *
+ * Both share the same `Tool` shape so the registry is uniform.
+ */
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+
+import type { PrysmidClient } from "../client.js";
+import type { Logger } from "../logger.js";
+
+export interface ToolContext {
+  client: PrysmidClient;
+  log: Logger;
+}
+
+export interface ToolDef<I extends z.ZodRawShape> {
+  name: string;
+  description: string;
+  inputShape: I;
+  /**
+   * Handler returns plain JSON-able output. The SDK serializes it into
+   * MCP `content` blocks; we wrap to text by default (most MCP UIs render it
+   * better than structured content).
+   */
+  handler: (
+    input: z.infer<z.ZodObject<I>>,
+    ctx: ToolContext,
+  ) => Promise<unknown>;
+}
+
+export function defineTool<I extends z.ZodRawShape>(t: ToolDef<I>): ToolDef<I> {
+  return t;
+}
+
+export function registerAll(
+  server: McpServer,
+  ctx: ToolContext,
+  tools: ReadonlyArray<ToolDef<z.ZodRawShape>>,
+): void {
+  for (const tool of tools) {
+    server.registerTool(
+      tool.name,
+      {
+        description: tool.description,
+        inputSchema: tool.inputShape,
+      },
+      async (input) => {
+        try {
+          const result = await tool.handler(input, ctx);
+          return {
+            content: [
+              {
+                type: "text",
+                text:
+                  typeof result === "string"
+                    ? result
+                    : JSON.stringify(result, null, 2),
+              },
+            ],
+          };
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          ctx.log.error(`tool ${tool.name} failed`, { message });
+          return {
+            isError: true,
+            content: [{ type: "text", text: `error: ${message}` }],
+          };
+        }
+      },
+    );
+  }
+}

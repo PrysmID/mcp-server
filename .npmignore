@@ -1,0 +1,12 @@
+src/
+tests/
+scripts/
+*.config.ts
+.github/
+.gitignore
+tsconfig.json
+vitest.config.ts
+node_modules/
+*.tsbuildinfo
+coverage/
+.env*
