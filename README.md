@@ -17,22 +17,29 @@ Exposes the full Prysmid platform API as MCP tools so an agent can:
 
 ## Install
 
+> Pre-1.0 — distribution is via GitHub for now; `@prysmid/mcp` on npm is on the way.
+
+Pin to a specific version (recommended):
+
 ```bash
-claude mcp add prysmid npx -y @prysmid/mcp
+claude mcp add prysmid -- npx -y github:PrysmID/mcp-server#v0.1.0
+```
+
+Or float to the tip of `main`:
+
+```bash
+claude mcp add prysmid -- npx -y github:PrysmID/mcp-server
 ```
 
 (or the equivalent for your agent)
 
-The first call prompts an OAuth device flow against `auth.prysmid.com`. Tokens are cached at:
-
-- Linux/Mac: `~/.config/prysmid-mcp/token.json`
-- Windows: `%APPDATA%/prysmid-mcp/token.json`
-
-For CI/automation use a personal access token via env var:
+For now, auth is bearer-token-only via env var:
 
 ```bash
-PRYSMID_API_TOKEN=ptkn_… npx @prysmid/mcp
+PRYSMID_API_TOKEN=ptkn_… npx -y github:PrysmID/mcp-server
 ```
+
+OAuth device flow with token caching at `~/.config/prysmid-mcp/token.json` (Unix) or `%APPDATA%/prysmid-mcp/token.json` (Windows) is queued for a follow-up release.
 
 ## Configuration
 
