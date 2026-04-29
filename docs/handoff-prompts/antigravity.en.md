@@ -8,7 +8,7 @@ Already provisioned (I created it from app.prysmid.com):
 - slug: {workspace_slug}
 - auth_domain: {auth_domain}
 
-I have no token to hand you. The MCP authenticates via **device flow**: when the server starts for the first time it prints a URL and a 6-letter code that I confirm in the browser. The token is cached by the server — you never handle it.
+I have no token to hand you. The MCP authenticates via **device flow**: when the server starts for the first time it prints a URL and an 8-letter code in `XXXX-XXXX` format that I confirm in the browser. The token is cached on disk by the server after a one-time interactive login (step 5). After that, you never handle it — the server refreshes it on its own.
 
 ## Procedure (strict, sequential)
 
@@ -84,7 +84,7 @@ Expected: prints a version like `0.3.0` and exits 0. If it fails:
 
 **Why this step exists.** When Antigravity launches the MCP server as a stdio subprocess, **stderr is NOT a TTY** — it's a pipe captured by the parent process. The bundled device flow library detects that condition and refuses to prompt interactively (without `PRYSMID_FORCE_DEVICE_FLOW`). Skipping this step means the first tool call fails with a silent 401 and the session hangs unauthenticated.
 
-The fix: run the binary ONCE in a real terminal (TTY present), complete the device flow, and let the token persist on disk. After that, when Antigravity starts the MCP, the cached token is reused and every tool call succeeds without re-auth until the token expires (~1 hour).
+The fix: run the binary ONCE in a real terminal (TTY present), complete the device flow, and let the token persist on disk. After that, when Antigravity starts the MCP, the cached token is reused and every tool call succeeds without re-auth until the token expires (~12 hours, with a refresh_token that extends it up to the IdP's limit — typically 30 days).
 
 Ask me to open a fresh terminal (Git Bash on Windows; bash/zsh on Linux/macOS) and run:
 
@@ -157,8 +157,6 @@ Report the `verdict` (`ready` / `incomplete`) and the failing items. Expected at
 - ✅ users_can_sign_in (Zitadel's default policy allows username+password+register, so even without IdPs, end-users can self-signup)
 - ✅ branding_primary_color_set (Prysm:ID default)
 - ❌ auth_strength_reasonable (no enforced MFA, no external IdPs)
-
-**Known quirk in `@prysmid/mcp@0.3.0`** (to be fixed in v0.4): even after you create an OIDC app in the workspace, this check may report `has_at_least_one_app: false  details: "undefined apps"`. Not blocking — cross-check with `mcp_prysmid_list_apps(workspace="{workspace_slug}")`.
 
 ### 9. Configure Google login
 Tell me exactly:
