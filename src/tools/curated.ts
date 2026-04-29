@@ -96,17 +96,20 @@ export const enableGoogleLogin = defineTool({
     { workspace, google_client_id, google_client_secret, name },
     { client },
   ) => {
+    // The IdP create body is the discriminated-union shape that
+    // app/schemas/idp.py expects: `type` (not `provider`), and client_id /
+    // client_secret are flat top-level fields (not nested under `config`).
+    // Sending `provider` or nested config 422s the request before any handler
+    // runs.
     const idp = await client.request(
       `/v1/workspaces/${encodeURIComponent(workspace)}/idps`,
       {
         method: "POST",
         body: {
-          provider: "google",
+          type: "google",
           name,
-          config: {
-            client_id: google_client_id,
-            client_secret: google_client_secret,
-          },
+          client_id: google_client_id,
+          client_secret: google_client_secret,
         },
       },
     );
