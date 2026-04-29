@@ -53,7 +53,10 @@ describe("create_oidc_app tool", () => {
 });
 
 describe("add_idp tool", () => {
-  it("requires provider-specific config", async () => {
+  it("forwards the discriminated-union body shape that IdpCreate expects", async () => {
+    // The backend (app/schemas/idp.py:IdpCreate) discriminates on `type` and
+    // takes client_id/client_secret as flat top-level fields. The previous
+    // shape (`provider` + nested `config`) made every call 422 (Bug #6).
     const mock = global.fetch as unknown as ReturnType<typeof vi.fn>;
     mock.mockResolvedValueOnce(
       new Response(JSON.stringify({ id: "idp-1" }), { status: 201 }),
@@ -62,19 +65,23 @@ describe("add_idp tool", () => {
     await addIdp.handler(
       {
         workspace: "acme",
-        provider: "google",
+        type: "google",
         name: "Google",
-        config: {
-          client_id: "g-id",
-          client_secret: "g-secret",
-        },
+        client_id: "g-id",
+        client_secret: "g-secret",
       },
       { client: client(), log: makeLogger({ logLevel: "error" }) },
     );
     const [, init] = mock.mock.calls[0]!;
     const body = JSON.parse(init.body as string);
-    expect(body.provider).toBe("google");
-    expect(body.config.client_id).toBe("g-id");
+    expect(body).toEqual({
+      type: "google",
+      name: "Google",
+      client_id: "g-id",
+      client_secret: "g-secret",
+    });
+    expect(body).not.toHaveProperty("provider");
+    expect(body).not.toHaveProperty("config");
   });
 });
 

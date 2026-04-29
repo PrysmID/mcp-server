@@ -22,29 +22,27 @@ export const listIdps = defineTool({
 export const addIdp = defineTool({
   name: "add_idp",
   description:
-    "Add an identity provider to the workspace and attach it to the login policy in one atomic call. Provider-specific fields go in `config`.",
+    "Add an identity provider to the workspace and attach it to the login policy in one atomic call.",
   inputShape: {
     workspace: z.string().min(1),
-    provider: z.enum(["google", "github", "azure_ad", "oidc"]),
+    type: z
+      .enum(["google", "github", "microsoft", "oidc"])
+      .describe("Identity provider kind. `microsoft` covers Azure AD / Entra."),
     name: z.string().min(1).describe("Display name shown on login screen"),
-    config: z
-      .object({
-        client_id: z.string().min(1),
-        client_secret: z.string().min(1),
-        scopes: z.array(z.string()).optional(),
-        issuer: z
-          .string()
-          .url()
-          .optional()
-          .describe("Required for `oidc`; ignored otherwise"),
-        tenant_id: z
-          .string()
-          .optional()
-          .describe(
-            "Required for `azure_ad` to lock to a specific Microsoft tenant",
-          ),
-      })
-      .describe("Provider-specific OAuth config"),
+    client_id: z.string().min(1),
+    client_secret: z.string().min(1),
+    scopes: z.array(z.string()).optional(),
+    issuer: z
+      .string()
+      .url()
+      .optional()
+      .describe("Required for `oidc`; ignored otherwise"),
+    tenant_id: z
+      .string()
+      .optional()
+      .describe(
+        "Optional for `microsoft` — lock to a specific Entra tenant GUID. Default accepts any account.",
+      ),
   },
   handler: async ({ workspace, ...body }, { client }) =>
     client.request(
