@@ -1,6 +1,6 @@
 {
   "name": "@prysmid/mcp",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Official Prysmid MCP server — manage workspaces, apps OIDC, login policy, IdPs, branding, users from any MCP-compatible agent (Claude Code, Cursor, etc.)",
   "license": "Apache-2.0",
   "homepage": "https://prysmid.com",

@@ -127,6 +127,15 @@ interface SetupCheckItem {
   details?: string;
 }
 
+type ListResp = { items?: unknown[]; total?: number } | unknown[];
+
+function countItems(resp: ListResp): number {
+  if (Array.isArray(resp)) return resp.length;
+  if (typeof resp.total === "number") return resp.total;
+  if (Array.isArray(resp.items)) return resp.items.length;
+  return 0;
+}
+
 export const prysmidSetupCheck = defineTool({
   name: "prysmid_setup_check",
   description:
@@ -138,12 +147,12 @@ export const prysmidSetupCheck = defineTool({
     const ws = (await client.request(
       `/v1/workspaces/${encodeURIComponent(workspace)}`,
     )) as { state: string; auth_domain?: string };
-    const apps = (await client.request(
+    const appsResp = (await client.request(
       `/v1/workspaces/${encodeURIComponent(workspace)}/apps`,
-    )) as unknown[];
-    const idps = (await client.request(
+    )) as ListResp;
+    const idpsResp = (await client.request(
       `/v1/workspaces/${encodeURIComponent(workspace)}/idps`,
-    )) as unknown[];
+    )) as ListResp;
     const policy = (await client.request(
       `/v1/workspaces/${encodeURIComponent(workspace)}/login-policy`,
     )) as {
@@ -156,6 +165,14 @@ export const prysmidSetupCheck = defineTool({
       `/v1/workspaces/${encodeURIComponent(workspace)}/branding`,
     )) as { primary_color?: string };
 
+    // The list endpoints return { items, total } — but tolerate a raw array
+    // too so the check stays robust if the projection ever flips back.
+    const appsCount = countItems(appsResp);
+    const idpsCount = countItems(idpsResp);
+    const passwordsOpen =
+      policy.allow_username_password === true &&
+      policy.allow_register === true;
+
     const checks: SetupCheckItem[] = [
       {
         ok: ws.state === "active",
@@ -163,31 +180,32 @@ export const prysmidSetupCheck = defineTool({
         details: `state=${ws.state}`,
       },
       {
-        ok: apps.length > 0,
+        ok: appsCount > 0,
         name: "has_at_least_one_app",
-        details: `${apps.length} apps`,
+        details: `${appsCount} apps`,
       },
       {
-        ok:
-          idps.length > 0 ||
-          (policy.allow_username_password === true &&
-            policy.allow_register === true),
+        ok: idpsCount > 0 || passwordsOpen,
         name: "users_can_sign_in",
         details:
-          idps.length > 0
-            ? `${idps.length} idps`
-            : "no idps; must allow username+password+register",
+          idpsCount > 0
+            ? `${idpsCount} idps`
+            : passwordsOpen
+              ? "no idps but username+password (with self-registration) allowed"
+              : "no idps; enable allow_username_password+allow_register or add an IdP",
       },
       {
         ok: !!branding.primary_color,
         name: "branding_primary_color_set",
       },
       {
-        ok: policy.force_mfa === true || idps.length > 0,
+        ok: policy.force_mfa === true || idpsCount > 0,
         name: "auth_strength_reasonable",
         details: policy.force_mfa
           ? "force_mfa=true"
-          : "MFA off but external IdP present",
+          : idpsCount > 0
+            ? `${idpsCount} external IdP(s) — strength delegated upstream`
+            : "MFA off and no external IdPs — passwords-only is weak",
       },
     ];
     const verdict = checks.every((c) => c.ok) ? "ready" : "incomplete";
