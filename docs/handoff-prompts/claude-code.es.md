@@ -8,7 +8,7 @@ Ya está provisioned (lo creé desde app.prysmid.com):
 - slug: {workspace_slug}
 - auth_domain: {auth_domain}
 
-No tengo ningún token para pasarte. La autenticación del MCP es por **device flow**: cuando el server arranque por primera vez te va a imprimir un URL y un código de 6-letras que yo confirmo en el browser. El token queda cacheado por el server, vos no lo manejás.
+No tengo ningún token para pasarte. La autenticación del MCP es por **device flow**: cuando el server arranque por primera vez te va a imprimir un URL y un código de 8 letras en formato XXXX-XXXX que yo confirmo en el browser. El token queda cacheado en disco por el server después de un login interactivo de una sola vez (paso 5). Después de eso vos no lo manejás más — el server lo refresca solo.
 
 ## Procedimiento (estricto y secuencial)
 
@@ -55,7 +55,7 @@ Si aparece `✗ Failed`:
 
 **¿Por qué este paso existe?** Cuando Claude Code arranca el MCP server como subprocess stdio, **stderr no es un TTY** — es un pipe que captura el padre. La librería de device flow del MCP detecta esa condición y se rehúsa a prompt interactivamente (con `PRYSMID_FORCE_DEVICE_FLOW` desactivado). Resultado si saltamos este paso: la primera tool call falla con 401 silencioso y la sesión queda colgada sin auth.
 
-La solución es ejecutar el binario UNA VEZ en una terminal real (TTY presente), completar device flow, y dejar el token cacheado en disco. Después Claude Code arranca, el MCP encuentra el token cacheado y todas las tool calls funcionan sin re-auth hasta que expire (1 hora típico).
+La solución es ejecutar el binario UNA VEZ en una terminal real (TTY presente), completar device flow, y dejar el token cacheado en disco. Después Claude Code arranca, el MCP encuentra el token cacheado y todas las tool calls funcionan sin re-auth hasta que expire (~12 horas, con refresh_token que extiende hasta el límite del IdP — típicamente 30 días).
 
 Pedime que abra una terminal nueva (Git Bash en Windows; bash/zsh en Linux/macOS) y ejecute:
 
@@ -127,8 +127,6 @@ Reportame el `verdict` (`ready` / `incomplete`) y los items que fallan. Esperado
 - ✅ users_can_sign_in (la policy default de Zitadel permite username+password+register, así que aunque no haya IdPs los end-users pueden self-signup)
 - ✅ branding_primary_color_set (default Prysm:ID)
 - ❌ auth_strength_reasonable (no hay MFA forzado ni IdPs externos)
-
-**Quirk conocido en `@prysmid/mcp@0.3.0`** (a fixear en v0.4): aunque ya hayas creado una OIDC app en el workspace, este check puede reportar `has_at_least_one_app: false  details: "undefined apps"`. No es bloqueante — verificalo cruzando con `list_apps(workspace="{workspace_slug}")`.
 
 ### 9. Configurá Google login
 Decime exactamente:
