@@ -20,26 +20,13 @@ export const listApps = defineTool({
 export const createOidcApp = defineTool({
   name: "create_oidc_app",
   description:
-    "Create an OIDC application in a workspace. Returns client_id (and client_secret if confidential). Use auth_method=NONE for SPA/PKCE; use BASIC for confidential web apps.",
+    "Create an OIDC application in a workspace. Returns client_id (and client_secret only when app_type=web). app_type=web is a confidential server-rendered app; spa and native are public clients that use PKCE and have no secret.",
   inputShape: {
     workspace: z.string().min(1),
     name: z.string().min(1).max(255),
     redirect_uris: z.array(z.string().url()).min(1),
     post_logout_redirect_uris: z.array(z.string().url()).optional(),
-    app_type: z
-      .enum([
-        "OIDC_APP_TYPE_WEB",
-        "OIDC_APP_TYPE_USER_AGENT",
-        "OIDC_APP_TYPE_NATIVE",
-      ])
-      .default("OIDC_APP_TYPE_WEB"),
-    auth_method: z
-      .enum([
-        "OIDC_AUTH_METHOD_TYPE_NONE",
-        "OIDC_AUTH_METHOD_TYPE_BASIC",
-        "OIDC_AUTH_METHOD_TYPE_POST",
-      ])
-      .default("OIDC_AUTH_METHOD_TYPE_NONE"),
+    app_type: z.enum(["web", "spa", "native"]).default("web"),
     dev_mode: z
       .boolean()
       .default(false)

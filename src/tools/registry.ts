@@ -14,7 +14,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
-import type { PrysmidClient } from "../client.js";
+import { PrysmidApiError, type PrysmidClient } from "../client.js";
 import type { Logger } from "../logger.js";
 
 export interface ToolContext {
@@ -76,11 +76,15 @@ export function registerAll(
           };
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
+          // For API errors, surface the response body so callers see the
+          // FastAPI validation detail instead of a bare status code.
+          const detail =
+            err instanceof PrysmidApiError && err.body ? `\n${err.body}` : "";
           ctx.log.error(`tool ${tool.name} failed`, { message });
           return {
             isError: true,
             content: [
-              { type: "text" as const, text: `error: ${message}` },
+              { type: "text" as const, text: `error: ${message}${detail}` },
             ],
           };
         }

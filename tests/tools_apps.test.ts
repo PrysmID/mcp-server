@@ -23,7 +23,11 @@ afterEach(() => {
 });
 
 describe("create_oidc_app tool", () => {
-  it("posts JSON body and applies defaults", async () => {
+  it("posts the short app_type value the API expects, never the Zitadel-internal enum", async () => {
+    // Regression: the API (app/schemas/app.py:AppType) accepts only "web" |
+    // "spa" | "native" and derives auth_method internally. Sending the long
+    // OIDC_APP_TYPE_* / OIDC_AUTH_METHOD_TYPE_* wire values made every call
+    // 422.
     const mock = global.fetch as unknown as ReturnType<typeof vi.fn>;
     mock.mockResolvedValueOnce(
       new Response(JSON.stringify({ id: "app-1", clientId: "c-1" }), {
@@ -36,8 +40,7 @@ describe("create_oidc_app tool", () => {
         workspace: "acme",
         name: "MyApp",
         redirect_uris: ["https://app.test/cb"],
-        app_type: "OIDC_APP_TYPE_WEB",
-        auth_method: "OIDC_AUTH_METHOD_TYPE_NONE",
+        app_type: "web",
         dev_mode: false,
       },
       { client: client(), log: makeLogger({ logLevel: "error" }) },
@@ -49,6 +52,8 @@ describe("create_oidc_app tool", () => {
     expect(body.workspace).toBeUndefined(); // workspace is in path, not body
     expect(body.name).toBe("MyApp");
     expect(body.redirect_uris).toEqual(["https://app.test/cb"]);
+    expect(body.app_type).toBe("web");
+    expect(body).not.toHaveProperty("auth_method");
   });
 });
 
