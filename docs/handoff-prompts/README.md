@@ -45,8 +45,9 @@ Variables NO interpoladas (constantes — viven en la plantilla):
 
 - **ES y EN se sincronizan en el mismo commit.** Si modificás `claude-code.es.md`, modificá `claude-code.en.md` en el mismo PR. Idem para Antigravity.
 - **Cambios al MCP que afectan el flujo** (nueva tool curated, breaking change en argumentos, paso nuevo en el setup) requieren update de los 4 prompts.
-- **Cuando agreguemos providers además de Google** (GitHub, Microsoft, Apple), el paso "Configurar Google login" se vuelve "Configurar IdP" con sub-instrucciones por provider — actualizar plantilla en consecuencia.
+- **Cuando agreguemos providers además de Google** (GitHub, Microsoft, Apple), el paso "Configurar Google login" se vuelve "Configurar IdP" con sub-instrucciones por provider. El sub-paso 9.0 (decisión de proyecto/cuenta upstream) y el modelo mental de dos capas ya están escritos genéricos para que apliquen a cualquier provider — solo hay que agregar las URLs específicas del nuevo provider en el sub-paso 9.1.
 - **Tono / estilo**: se mantiene el patrón de Blenau (instrucciones imperativas en primera persona del cliente al agente, "Reglas de oro" al final, "Al terminar" con próximos pasos concretos).
+- **Secciones cross-cut** (presentes en los 4 archivos): step 5 con decision tree agente-vs-humano para device flow, step 6 con explicación del porqué del reinicio, modelo mental de 2 capas + decisión de proyecto upstream antes del IdP setup, sub-paso 11.0 de strategy de secretos, sección "Diagnóstico cuando una tool falla" antes de "Reglas de oro". Si tocás alguna, replicá los cambios en los 4 archivos.
 
 ## Para qué NO sirven estos archivos
 
