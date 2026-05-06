@@ -45,6 +45,17 @@ El MCP de Prysm:ID soporta dos modos de auth, mutuamente excluyentes:
 - No declares éxito por tener archivos escritos.
 - Solo considerá éxito cuando una herramienta real del MCP responde **y** `prysmid_setup_check(workspace="{workspace_slug}")` retorna `verdict: "ready"`.
 
+## Regla #0 — vos ejecutás, yo no abro terminales
+
+**Vos sos quien corre los comandos.** Tenés un tool de shell — usalo. **NO** me pidas a mí "ejecutá esto en tu terminal y pegame la salida". Eso anula el sentido de tener un agente con acceso a shell.
+
+Lo único que yo hago manualmente:
+1. Confirmar el código del device flow en el browser (un click — yo ya estoy logueado en Google).
+2. Pegar credenciales que vienen de UIs externas (Google Cloud Console, etc.) que vos no podés ver.
+3. Decisiones de producto que requieren mi opinión (nombre de app, redirect URIs, framework).
+
+Todo lo demás lo corrés vos.
+
 ## Procedimiento (estricto y secuencial)
 
 ### 1. Diagnóstico inicial

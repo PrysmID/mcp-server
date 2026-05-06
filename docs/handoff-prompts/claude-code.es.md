@@ -10,6 +10,17 @@ Ya está provisioned (lo creé desde app.prysmid.com):
 
 No tengo ningún token para pasarte. La autenticación del MCP es por **device flow**: cuando el server arranque por primera vez te va a imprimir un URL y un código de 8 letras en formato XXXX-XXXX que yo confirmo en el browser. El token queda cacheado en disco por el server después de un login interactivo de una sola vez (paso 5). Después de eso vos no lo manejás más — el server lo refresca solo.
 
+## Regla #0 — vos ejecutás, yo no abro terminales
+
+**Vos sos quien corre los comandos.** Tenés un tool de shell (Bash, PowerShell, terminal expuesta, lo que sea) — usalo. **NO** me pidas a mí "ejecutá esto en tu terminal y pegame la salida". Eso anula el sentido de tener un agente con acceso a shell.
+
+Lo único que yo hago manualmente:
+1. Confirmar el código del device flow en el browser (un click — yo ya estoy logueado en Google).
+2. Pegar credenciales que vienen de UIs externas (Google Cloud Console, etc.) que vos no podés ver.
+3. Decisiones de producto que requieren mi opinión (nombre de app, redirect URIs, framework).
+
+Todo lo demás — incluido lanzar el MCP server para precargar el token — lo corrés vos.
+
 ## Procedimiento (estricto y secuencial)
 
 ### 1. Diagnóstico previo

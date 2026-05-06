@@ -16,6 +16,17 @@ El CLI funciona en cualquier editor o agente que pueda ejecutar comandos en una 
 
 Vos mismo (el agente) podés llamar a `prysmid` como cualquier otro comando shell; el output es JSON cuando se pipea (`prysmid <cmd> --json` o `-o json`), perfecto para que lo parsees y tomes decisiones. Los errores incluyen líneas `hint:` con remediation concreto.
 
+## Regla #0 — vos ejecutás, yo no abro terminales
+
+**Vos sos quien corre los comandos.** Tenés un tool de shell (Bash, PowerShell, terminal expuesta, lo que sea) — usalo. **NO** me pidas a mí "ejecutá `prysmid login` en tu terminal y pegame la salida". Eso anula el sentido de tener un agente con acceso a shell.
+
+Lo único que yo hago manualmente:
+1. Confirmar el código del device flow en el browser (un click — yo ya estoy logueado en Google).
+2. Pegar credenciales que vienen de UIs externas (Google Cloud Console, etc.) que vos no podés ver.
+3. Decisiones de producto que requieren mi opinión (nombre de app, redirect URIs, framework).
+
+Todo lo demás — `prysmid login` incluido — lo corrés vos.
+
 ## Procedimiento (estricto y secuencial)
 
 ### 1. Diagnóstico previo
@@ -57,17 +68,16 @@ El CLI imprime en stderr un banner con la forma:
   Waiting for confirmation (expires in 600s)…
 ```
 
-**Cómo manejarlo:**
+**Cómo manejarlo (default — esto es lo que tenés que hacer):**
 
-- **Opción A** — si tu sandbox soporta procesos en background con stderr en streaming (Bash tool con `run_in_background`, terminal expuesta como tool, etc.):
-  1. Lanzá `prysmid login` como background task.
-  2. Polleá stderr hasta que aparezca el banner.
-  3. Mostrámelo en formato click-friendly:
-     > Abrí: https://auth.prysmid.com/device
-     > Confirmá el código: ABCD-EFGH
-  4. Cuando el proceso termine con exit 0, login OK.
+1. Lanzá `prysmid login` **en background** desde tu shell tool (Bash con `run_in_background: true`, o equivalente). NO lo corras en foreground porque bloquea hasta los 600s.
+2. Polleá la salida (stdout/stderr) hasta que aparezca el banner con el código `XXXX-XXXX`. Suele tardar 1–3s.
+3. Mostrámelo así (click-friendly, una sola vez):
+   > Abrí: https://auth.prysmid.com/device
+   > Confirmá el código: **ABCD-EFGH**
+4. Seguí polleando el proceso. Cuando termine con exit 0, login OK — pasá al paso 4 sin esperar a que yo te confirme nada (el exit 0 ya implica que confirmé).
 
-- **Opción B** — si no podés mantener procesos vivos entre tool calls: pedime que abra una terminal y ejecute `prysmid login`, y que me avise cuando vea `expires in 600s`. Yo abro la URL, confirmo el code, y el comando termina solo.
+**Si tu sandbox NO tiene background processes** (caso muy raro — Claude Code, Codex y Antigravity sí los soportan): decímelo explícitamente con esa frase ("mi sandbox no soporta procesos en background"), y recién ahí pedime que corra `prysmid login` yo en una terminal. No es la primera opción, es el último recurso.
 
 Yo ya estoy logueado en Prysm:ID con Google de cuando creé el workspace, así que la confirmación del code en el browser es un click.
 

@@ -10,6 +10,17 @@ Already provisioned (I created it from app.prysmid.com):
 
 I have no token to hand you. The MCP authenticates via **device flow**: when the server starts for the first time it prints a URL and an 8-letter code in `XXXX-XXXX` format that I confirm in the browser. The token is cached on disk by the server after a one-time interactive login (step 5). After that, you never handle it — the server refreshes it on its own.
 
+## Rule #0 — you run the commands, I don't open terminals
+
+**You are the one who runs the commands.** You have a shell tool (Bash, PowerShell, exposed terminal, whatever) — use it. **Do NOT** ask me "run this in your terminal and paste me the output". That defeats the purpose of having an agent with shell access.
+
+The only things I do manually:
+1. Confirm the device-flow code in the browser (one click — I'm already signed into Google).
+2. Paste credentials that come from external UIs (Google Cloud Console, etc.) you can't see.
+3. Product decisions that need my input (app name, redirect URIs, framework).
+
+Everything else — including launching the MCP server to pre-cache the token — you run yourself.
+
 ## Procedure (strict, sequential)
 
 ### 1. Pre-flight diagnostics

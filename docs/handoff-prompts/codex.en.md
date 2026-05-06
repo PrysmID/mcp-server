@@ -45,6 +45,17 @@ The Prysm:ID MCP supports two mutually exclusive auth modes:
 - Don't declare success because files were written.
 - Only declare success when a real MCP tool responds **and** `prysmid_setup_check(workspace="{workspace_slug}")` returns `verdict: "ready"`.
 
+## Rule #0 — you run the commands, I don't open terminals
+
+**You are the one who runs the commands.** You have a shell tool — use it. **Do NOT** ask me "run this in your terminal and paste me the output". That defeats the purpose of having an agent with shell access.
+
+The only things I do manually:
+1. Confirm the device-flow code in the browser (one click — I'm already signed into Google).
+2. Paste credentials that come from external UIs (Google Cloud Console, etc.) you can't see.
+3. Product decisions that need my input (app name, redirect URIs, framework).
+
+Everything else you run yourself.
+
 ## Procedure (strict, sequential)
 
 ### 1. Pre-flight diagnostics

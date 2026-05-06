@@ -16,6 +16,17 @@ The CLI works in any editor or agent that can run shell commands. No per-host co
 
 You (the agent) call `prysmid` like any other shell command. Output is JSON when piped (`prysmid <cmd> --json` or `-o json`), perfect for you to parse and decide on. Errors include `hint:` lines with concrete remediation.
 
+## Rule #0 — you run the commands, I don't open terminals
+
+**You are the one who runs the commands.** You have a shell tool (Bash, PowerShell, exposed terminal, whatever) — use it. **Do NOT** ask me "run `prysmid login` in your terminal and paste me the output". That defeats the purpose of having an agent with shell access.
+
+The only things I do manually:
+1. Confirm the device-flow code in the browser (one click — I'm already signed into Google).
+2. Paste credentials that come from external UIs (Google Cloud Console, etc.) you can't see.
+3. Product decisions that need my input (app name, redirect URIs, framework).
+
+Everything else — `prysmid login` included — you run yourself.
+
 ## Procedure (strict, sequential)
 
 ### 1. Pre-flight diagnostics
@@ -57,17 +68,16 @@ The CLI prints a banner to stderr like:
   Waiting for confirmation (expires in 600s)…
 ```
 
-**How to handle it:**
+**How to handle it (default — this is what you do):**
 
-- **Option A** — if your sandbox supports background processes with stderr streaming (Bash tool with `run_in_background`, terminal exposed as a tool, etc.):
-  1. Launch `prysmid login` as a background task.
-  2. Poll stderr until the banner appears.
-  3. Show me click-friendly:
-     > Open: https://auth.prysmid.com/device
-     > Confirm code: ABCD-EFGH
-  4. When the process exits 0, login is done.
+1. Launch `prysmid login` **in background** from your shell tool (Bash with `run_in_background: true`, or equivalent). Do NOT run it in foreground — it blocks for up to 600s.
+2. Poll the output (stdout/stderr) until the banner with the `XXXX-XXXX` code appears. Usually 1–3s.
+3. Show me click-friendly (once):
+   > Open: https://auth.prysmid.com/device
+   > Confirm code: **ABCD-EFGH**
+4. Keep polling the process. When it exits 0, login is done — move on to step 4 without waiting for me to confirm anything (exit 0 already means I confirmed).
 
-- **Option B** — if you can't keep processes alive across tool calls: ask me to open a terminal and run `prysmid login`, and to tell you when I see `expires in 600s`. I open the URL, confirm the code, and the command exits on its own.
+**If your sandbox does NOT support background processes** (very rare — Claude Code, Codex, and Antigravity all do): say so explicitly with that phrase ("my sandbox doesn't support background processes"), and only then ask me to run `prysmid login` myself in a terminal. This is a last resort, not the default.
 
 I'm already signed into Prysm:ID with Google from when I created the workspace, so the code confirmation in the browser is one click.
 
