@@ -163,8 +163,23 @@ prysmid idp enable-google \
 ```
 This adds Google as an IdP **and** flips `allow_external_idp=true` in the login policy. Show me the response. Expected: an object with `ok: true` and the freshly-created `idp.id`.
 
-### 7. Create the OIDC app for my product
-Ask me one by one:
+### 7. Before creating the app — secrets strategy
+
+**Critical — order matters.** The `client_secret` is shown ONCE in the `app create` response. If you create the app before knowing where the secret goes, you'll end up echoing it to chat to "show it to me" and it'll live in the transcript as a compromised secret. Decide the destination FIRST; create the app SECOND, and write the secret straight into the chosen store without routing it through chat.
+
+Ask me: **how do you manage secrets in this repo?** Common options:
+
+- Plain `.env.local` (gitignored) — sane default for simple apps and prototypes.
+- DevVault / Doppler / 1Password / AWS Secrets Manager / GCP Secret Manager / HashiCorp Vault — `.env.local` holds references or is generated at boot from the store.
+- Project-specific custom system.
+
+**Adapt the wiring to the chosen system.** If the repo has its own secret store, do NOT write `client_secret` to a plain `.env.local` — that breaks the project's convention and creates drift between the store and the on-disk copy.
+
+Heuristics to skip the question: if you see `devvault.yml` at the root → DevVault. `.doppler.yaml` → Doppler. `op.config.yaml` or `op://...` references → 1Password. In those cases confirm with one line ("I detected DevVault — using that, OK?") instead of listing the full menu.
+
+### 8. Create the OIDC app for my product
+
+Ask me one by one (skip what you can already infer from context):
 - **App name** (e.g. "Acme Web", "Acme Mobile"). Internal label; not shown to end users.
 - **Redirect URI(s)** — exact callback URL(s) of my app. Examples:
   - prod: `https://app.acme.com/auth/callback`
@@ -183,25 +198,17 @@ prysmid app create \
   --json
 ```
 
-Show me:
-- `client_id`
-- `client_secret` with an UPPERCASE WARNING: **⚠ THIS SECRET IS SHOWN ONCE — save it NOW**
-- `issuer URL`: `https://{auth_domain}`
-- `discovery URL`: `https://{auth_domain}/.well-known/openid-configuration`
+**Handling the response — do NOT echo the secret to chat.** Parse the JSON internally. Write `client_secret` directly into the store you chose in step 7 (file write with `chmod 600` for `.env.local`; `doppler secrets set`, `op item create`, etc. for stores). In your message to chat, show ONLY:
 
-### 8. Wire it into my repo
+- `client_id` (not a secret — it travels in the auth URL anyway)
+- `issuer`: `https://{auth_domain}`
+- `discovery_url`: `https://{auth_domain}/.well-known/openid-configuration`
+- `client_secret`: **`<written to {path or store reference}>`** — without the value. If you want to show evidence, the last 4 chars: `…wXyZ`.
+- A note: "the secret has been persisted; I will not print it again. To rotate: `prysmid app rotate-secret …`".
 
-#### 8.0 Secrets strategy
+If the user explicitly asks to see the full secret (e.g. to paste it into another UI by hand), only then print it, with a warning: "this lands in the chat transcript — consider rotating after if the chat persists".
 
-Before touching files, ask me: **how do you manage secrets in this repo?** Common options:
-
-- Plain `.env.local` (gitignored) — default; fine for simple apps and prototypes.
-- DevVault / Doppler / 1Password / AWS Secrets Manager / GCP Secret Manager / HashiCorp Vault — `.env.local` holds references or is generated at boot from the store.
-- Project-specific custom system.
-
-**Adapt the wiring to the chosen system**. If the repo has its own secret store, do NOT write `client_secret` to a plain `.env.local` — that breaks the project's convention and creates drift between the store and the on-disk copy.
-
-#### 8.1 Generate the auth files
+### 9. Wire it into my repo
 
 Ask me what framework I use. Officially supported templates:
 - Next.js + Auth.js v5 (recommended for JS/TS)
@@ -211,17 +218,18 @@ Ask me what framework I use. Officially supported templates:
 - Spring Security (Java)
 - Other → wire it with the most idiomatic OIDC library for that stack and tell me which one you picked.
 
-Generate the auth files (config + routes/middleware) plus the env config:
+Generate the auth files (config + routes/middleware) plus the env config. The `client_id` comes from step 8 (public); the `client_secret` is already in the store from step 8 — reference it from there, don't put it back in plain text if the repo uses a secret store:
+
 ```
 PRYSMID_ISSUER=https://{auth_domain}
-PRYSMID_CLIENT_ID=<step 7>
-PRYSMID_CLIENT_SECRET=<step 7>
-PRYSMID_REDIRECT_URI=<first redirect URI from step 7>
+PRYSMID_CLIENT_ID=<step 8>
+PRYSMID_CLIENT_SECRET=<read from the step-7 store — reference or env var, per convention>
+PRYSMID_REDIRECT_URI=<first redirect URI from step 8>
 PRYSMID_POST_LOGOUT_URI=<if applicable>
 ```
 If you're falling back to plain `.env.local`: verify it's in `.gitignore`. If not, append it with a `# Prysm:ID — never commit secrets` comment.
 
-### 9. Final verification
+### 10. Final verification
 ```bash
 prysmid setup-check --workspace {workspace_slug} --json
 ```

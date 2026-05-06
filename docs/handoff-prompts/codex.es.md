@@ -210,11 +210,15 @@ Browser → tu-app.com/dashboard  (logueado)
   - Redirect URI(s). Si son `http://localhost`, agregá `dev_mode=true`.
   - Post-logout redirect URI (opcional).
   - App type (default `web`).
-- Llamá `create_oidc_app(...)`. Reportame:
-  - `client_id`
-  - `client_secret` con WARNING: **⚠ ESTE SECRET SE VE UNA SOLA VEZ — guardalo YA**
+- **Antes de llamar `create_oidc_app` — decidí dónde va el `client_secret`** (detectá `devvault.yml` → DevVault, `.doppler.yaml` → Doppler, `op://` → 1Password; default `.env.local` con `chmod 600`). El secret se ve UNA sola vez; si lo creás antes de saber su destino, terminás echándolo al chat y queda comprometido en el transcript.
+- Llamá `create_oidc_app(...)`.
+- **Manejo del response — NO eches el secret al chat.** Parseá el JSON internamente, escribí `client_secret` directo al store decidido arriba. Reportame solo:
+  - `client_id` (no es secreto)
   - issuer: `https://{auth_domain}`
   - discovery: `https://{auth_domain}/.well-known/openid-configuration`
+  - `client_secret`: **`<escrito en {ruta o referencia del store}>`** — sin el valor (últimos 4 chars `…wXyZ` como evidencia si querés)
+  - Una nota: "el secret quedó persistido; no lo voy a volver a imprimir".
+- Si yo te pido explícitamente el valor completo (ej. para pegarlo en otra UI), recién ahí mostralo y avisame que queda en el transcript.
 
 ### 13. Login policy (idempotente)
 - `get_login_policy(workspace="{workspace_slug}")`.

@@ -207,7 +207,10 @@ enable_google_login(
 Show me the response. Expected: `idp.id` + `login_policy="allow_external_idp=true"`.
 
 ### 10. Create the OIDC app for my product
-Ask me one at a time:
+
+**Before calling `create_oidc_app` — decide where the `client_secret` will land.** The secret is shown ONCE in the response. If you create the app before knowing the destination, you'll end up echoing it to chat to "show me" and it'll live in the transcript as a compromised secret. Resolve the secrets strategy from step 11.0 first (ask now; or detect heuristically: `devvault.yml` → DevVault, `.doppler.yaml` → Doppler, `op://` → 1Password, default → `.env.local` with `chmod 600`), and only then call the tool.
+
+Ask me one at a time (skip what you can already infer from context):
 - **App name** (e.g. "Acme Web", "Acme Mobile"). Internal label; not exposed to end-users.
 - **Redirect URI(s)** — exact URL(s) of my app's OIDC callback. Examples:
   - prod: `https://app.acme.com/auth/callback`
@@ -216,11 +219,17 @@ Ask me one at a time:
 - **Post-logout redirect URI** (optional, default: app home).
 - **App type**: `web` (server-rendered, confidential) by default; `spa` or `native` if I say so (then it uses PKCE instead of client_secret).
 
-Call `create_oidc_app(...)` with those values. Show me:
-- `client_id`
-- `client_secret` with UPPERCASE WARNING: **⚠ THIS SECRET IS SHOWN ONCE — save it NOW**
-- `issuer URL`: https://{auth_domain}
-- `discovery URL`: https://{auth_domain}/.well-known/openid-configuration
+Call `create_oidc_app(...)` with those values.
+
+**Handling the response — do NOT echo the secret to chat.** Parse the JSON internally. Write `client_secret` directly into the store decided above (file write with `chmod 600` for `.env.local`; `doppler secrets set`, `op item create`, etc. for stores). In your message to chat, show ONLY:
+
+- `client_id` (not a secret — it travels in the auth URL anyway)
+- `issuer`: `https://{auth_domain}`
+- `discovery_url`: `https://{auth_domain}/.well-known/openid-configuration`
+- `client_secret`: **`<written to {path or store reference}>`** — without the value. If you want to show evidence, the last 4 chars: `…wXyZ`.
+- A note: "the secret has been persisted; I will not print it again. There's a dedicated tool/command to rotate if needed".
+
+If I explicitly ask to see the full secret (e.g. to paste into another UI by hand), only then print it, with a warning: "this lands in the chat transcript — consider rotating after if the chat persists".
 
 ### 11. Wire the app in my repo
 

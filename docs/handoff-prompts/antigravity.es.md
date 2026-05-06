@@ -237,7 +237,10 @@ mcp_prysmid_enable_google_login(
 Mostrame la respuesta. Esperado: `idp.id` + `login_policy="allow_external_idp=true"`.
 
 ### 10. Creá la OIDC app de mi producto
-Preguntame uno por uno:
+
+**Antes de llamar `mcp_prysmid_create_oidc_app` — decidí dónde va el `client_secret`.** El secret se ve UNA sola vez en la respuesta. Si lo creás antes de saber su destino, terminás echándolo al chat para "mostrármelo" y queda en el transcript como un secreto comprometido. Resolvé primero la strategy de secretos del paso 11.0 (preguntá ahora; o detectá heurísticamente: `devvault.yml` → DevVault, `.doppler.yaml` → Doppler, `op://` → 1Password, default → `.env.local` con `chmod 600`), y recién después llamá a la tool.
+
+Preguntame uno por uno (no preguntes lo que ya sepas por contexto):
 - **Nombre de la app** (ej. "Acme Web", "Acme Mobile"). Es etiqueta interna; no se expone a end-users.
 - **Redirect URI(s)** — URL(s) exacta(s) del callback OIDC de mi app. Ejemplos:
   - prod: `https://app.acme.com/auth/callback`
@@ -246,11 +249,17 @@ Preguntame uno por uno:
 - **Post-logout redirect URI** (opcional, default: home de la app).
 - **App type**: `web` (server-rendered, confidential) por default; `spa` o `native` si yo lo digo (entonces usa PKCE en lugar de client_secret).
 
-Llamá `mcp_prysmid_create_oidc_app(...)` con esos valores. Mostrame:
-- `client_id`
-- `client_secret` con WARNING en mayúsculas: **⚠ ESTE SECRET SE VE UNA SOLA VEZ — guardalo YA**
-- `issuer URL`: https://{auth_domain}
-- `discovery URL`: https://{auth_domain}/.well-known/openid-configuration
+Llamá `mcp_prysmid_create_oidc_app(...)` con esos valores.
+
+**Manejo del response — NO eches el secret al chat.** Parseá el JSON internamente. Escribí `client_secret` directo al store decidido arriba (file write con `chmod 600` para `.env.local`; `doppler secrets set`, `op item create`, etc. para stores). En tu mensaje al chat mostrá SOLO:
+
+- `client_id` (no es secreto — viaja en la URL de auth de todos modos)
+- `issuer`: `https://{auth_domain}`
+- `discovery_url`: `https://{auth_domain}/.well-known/openid-configuration`
+- `client_secret`: **`<escrito en {ruta o referencia del store}>`** — sin el valor. Si querés mostrar evidencia, los últimos 4 chars: `…wXyZ`.
+- Una nota: "el secret quedó persistido; no lo voy a volver a imprimir. Si necesitás rotarlo, hay tool dedicado".
+
+Si yo te pido explícitamente ver el secret completo (ej. para pegarlo en otra UI), mostralo recién ahí y avisá: "esto queda en el transcript del chat — considerá rotar después si el chat es persistente".
 
 ### 11. Generá el wiring en mi repo
 
