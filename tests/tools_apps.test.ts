@@ -3,8 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PrysmidClient } from "../src/client.js";
 import { loadConfig } from "../src/config.js";
 import { makeLogger } from "../src/logger.js";
-import { createOidcApp } from "../src/tools/apps.js";
-import { addIdp } from "../src/tools/idps.js";
+import {
+  createOidcApp,
+  getApp,
+  regenerateAppSecret,
+  updateApp,
+} from "../src/tools/apps.js";
+import { addIdp, getIdp, updateIdp } from "../src/tools/idps.js";
 import { inviteUser } from "../src/tools/users.js";
 
 function client() {
@@ -87,6 +92,173 @@ describe("add_idp tool", () => {
     });
     expect(body).not.toHaveProperty("provider");
     expect(body).not.toHaveProperty("config");
+  });
+});
+
+describe("get_app tool", () => {
+  it("GETs the per-app endpoint and returns the body verbatim", async () => {
+    const mock = global.fetch as unknown as ReturnType<typeof vi.fn>;
+    const body = {
+      id: "app-1",
+      name: "MyApp",
+      client_id: "c-1",
+      app_type: "web",
+      redirect_uris: ["https://app.test/cb"],
+      post_logout_redirect_uris: [],
+      grant_types: ["authorization_code", "refresh_token"],
+      auth_method: "client_secret_basic",
+      dev_mode: false,
+    };
+    mock.mockResolvedValueOnce(
+      new Response(JSON.stringify(body), { status: 200 }),
+    );
+
+    const out = await getApp.handler(
+      { workspace: "acme", app_id: "app-1" },
+      { client: client(), log: makeLogger({ logLevel: "error" }) },
+    );
+    expect(out).toEqual(body);
+    const [url, init] = mock.mock.calls[0]!;
+    expect(String(url)).toContain("/v1/workspaces/acme/apps/app-1");
+    // Default fetch method is GET — registered tools never send a body for GET.
+    expect(init?.method ?? "GET").toBe("GET");
+    expect(init?.body).toBeUndefined();
+  });
+});
+
+describe("update_app tool", () => {
+  it("PATCHes only the provided fields, never includes app_id/workspace in body", async () => {
+    const mock = global.fetch as unknown as ReturnType<typeof vi.fn>;
+    mock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ id: "app-1" }), { status: 200 }),
+    );
+
+    await updateApp.handler(
+      {
+        workspace: "acme",
+        app_id: "app-1",
+        redirect_uris: ["https://app.test/cb2"],
+        dev_mode: true,
+      },
+      { client: client(), log: makeLogger({ logLevel: "error" }) },
+    );
+    const [url, init] = mock.mock.calls[0]!;
+    expect(String(url)).toContain("/v1/workspaces/acme/apps/app-1");
+    expect(init.method).toBe("PATCH");
+    const sent = JSON.parse(init.body as string);
+    expect(sent).toEqual({
+      redirect_uris: ["https://app.test/cb2"],
+      dev_mode: true,
+    });
+    expect(sent).not.toHaveProperty("workspace");
+    expect(sent).not.toHaveProperty("app_id");
+    // client_secret is forbidden on this endpoint — we don't surface it in the
+    // schema at all, so the agent literally cannot send it through this tool.
+    expect(sent).not.toHaveProperty("client_secret");
+  });
+});
+
+describe("regenerate_app_secret tool", () => {
+  it("POSTs to /regenerate-secret and returns the rotated payload", async () => {
+    const mock = global.fetch as unknown as ReturnType<typeof vi.fn>;
+    mock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: "app-1",
+          client_id: "c-1",
+          client_secret: "newplaintext",
+          rotated_at: "2026-01-01T00:00:00Z",
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const out = await regenerateAppSecret.handler(
+      { workspace: "acme", app_id: "app-1", confirm: true },
+      { client: client(), log: makeLogger({ logLevel: "error" }) },
+    );
+    // @ts-expect-error narrow at runtime
+    expect(out.client_secret).toBe("newplaintext");
+    const [url, init] = mock.mock.calls[0]!;
+    expect(String(url)).toContain(
+      "/v1/workspaces/acme/apps/app-1/regenerate-secret",
+    );
+    expect(init.method).toBe("POST");
+    expect(init.body).toBeUndefined();
+  });
+
+  it("refuses to hit the network when confirm is not true", async () => {
+    const mock = global.fetch as unknown as ReturnType<typeof vi.fn>;
+    await expect(
+      regenerateAppSecret.handler(
+        // @ts-expect-error — exercising runtime guard with literal-false
+        { workspace: "acme", app_id: "app-1", confirm: false },
+        { client: client(), log: makeLogger({ logLevel: "error" }) },
+      ),
+    ).rejects.toThrow(/confirm=true/);
+    expect(mock).not.toHaveBeenCalled();
+  });
+
+  it("Zod literal(true) rejects confirm: false at schema parse time", () => {
+    const schema = regenerateAppSecret.inputShape.confirm;
+    expect(schema.safeParse(true).success).toBe(true);
+    expect(schema.safeParse(false).success).toBe(false);
+    expect(schema.safeParse(undefined).success).toBe(false);
+  });
+});
+
+describe("get_idp tool", () => {
+  it("GETs the per-idp endpoint", async () => {
+    const mock = global.fetch as unknown as ReturnType<typeof vi.fn>;
+    const body = {
+      id: "idp-1",
+      name: "Google",
+      type: "google",
+      state: "active",
+      client_id: "g-id",
+      scopes: ["openid", "profile", "email"],
+    };
+    mock.mockResolvedValueOnce(
+      new Response(JSON.stringify(body), { status: 200 }),
+    );
+
+    const out = await getIdp.handler(
+      { workspace: "acme", idp_id: "idp-1" },
+      { client: client(), log: makeLogger({ logLevel: "error" }) },
+    );
+    expect(out).toEqual(body);
+    const [url, init] = mock.mock.calls[0]!;
+    expect(String(url)).toContain("/v1/workspaces/acme/idps/idp-1");
+    expect(init?.method ?? "GET").toBe("GET");
+  });
+});
+
+describe("update_idp tool", () => {
+  it("PATCHes with client_secret in the body (upstream rotation path)", async () => {
+    const mock = global.fetch as unknown as ReturnType<typeof vi.fn>;
+    mock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ id: "idp-1" }), { status: 200 }),
+    );
+
+    await updateIdp.handler(
+      {
+        workspace: "acme",
+        idp_id: "idp-1",
+        client_secret: "rotated-upstream-secret",
+        scopes: ["openid", "email"],
+      },
+      { client: client(), log: makeLogger({ logLevel: "error" }) },
+    );
+    const [url, init] = mock.mock.calls[0]!;
+    expect(String(url)).toContain("/v1/workspaces/acme/idps/idp-1");
+    expect(init.method).toBe("PATCH");
+    const sent = JSON.parse(init.body as string);
+    expect(sent).toEqual({
+      client_secret: "rotated-upstream-secret",
+      scopes: ["openid", "email"],
+    });
+    expect(sent).not.toHaveProperty("workspace");
+    expect(sent).not.toHaveProperty("idp_id");
   });
 });
 
