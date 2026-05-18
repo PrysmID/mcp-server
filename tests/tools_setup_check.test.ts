@@ -23,7 +23,7 @@ const ctx = (paths: Record<string, unknown>) => ({
 describe("prysmid_setup_check", () => {
   it("returns verdict=ready when everything is configured (paginated shape)", async () => {
     const out = (await prysmidSetupCheck.handler(
-      { workspace: "acme" },
+      { workspace: "acme", probe_idps: false },
       ctx({
         "/v1/workspaces/acme": {
           state: "active",
@@ -44,7 +44,7 @@ describe("prysmid_setup_check", () => {
 
   it("still works when list endpoints return a raw array (legacy shape)", async () => {
     const out = (await prysmidSetupCheck.handler(
-      { workspace: "legacy" },
+      { workspace: "legacy", probe_idps: false },
       ctx({
         "/v1/workspaces/legacy": { state: "active" },
         "/v1/workspaces/legacy/apps": [{ id: "app-1" }],
@@ -153,9 +153,107 @@ describe("prysmid_setup_check", () => {
     expect(auth?.details).toContain("no external IdPs");
   });
 
+  it("idps_functional check: ready when probes succeed (default probe_idps=true)", async () => {
+    const out = (await prysmidSetupCheck.handler(
+      { workspace: "good" },
+      ctx({
+        "/v1/workspaces/good": { state: "active" },
+        "/v1/workspaces/good/apps": { items: [{ id: "a" }], total: 1 },
+        "/v1/workspaces/good/idps": {
+          items: [{ id: "idp-1", type: "google" }],
+          total: 1,
+        },
+        "/v1/workspaces/good/login-policy": {
+          allow_username_password: true,
+          allow_register: true,
+        },
+        "/v1/workspaces/good/branding": { primary_color: "#000" },
+        "/v1/workspaces/good/idps/idp-1/probe": {
+          ok: true,
+          provider_reachable: true,
+          credentials_ok: true,
+          redirect_uri_ok: true,
+        },
+      }),
+    )) as {
+      verdict: string;
+      checks: { ok: boolean; name: string; details?: string }[];
+    };
+    expect(out.verdict).toBe("ready");
+    const fn = out.checks.find((c) => c.name === "idps_functional");
+    expect(fn?.ok).toBe(true);
+    expect(fn?.details).toContain("idp-1=ok");
+  });
+
+  it("idps_functional check: flags incomplete when a probe fails (real-world redirect_uri_mismatch)", async () => {
+    /** Closes the gap that motivated the 2026-05-18 integration report:
+     *  setup_check was reporting `ready` while a misconfigured IdP was
+     *  silently failing for end-users. The probe must catch that and the
+     *  overall verdict must demote to `incomplete`. */
+    const out = (await prysmidSetupCheck.handler(
+      { workspace: "broken" },
+      ctx({
+        "/v1/workspaces/broken": { state: "active" },
+        "/v1/workspaces/broken/apps": { items: [{ id: "a" }], total: 1 },
+        "/v1/workspaces/broken/idps": {
+          items: [{ id: "idp-1", type: "google" }],
+          total: 1,
+        },
+        "/v1/workspaces/broken/login-policy": {
+          allow_username_password: true,
+          allow_register: true,
+        },
+        "/v1/workspaces/broken/branding": { primary_color: "#000" },
+        "/v1/workspaces/broken/idps/idp-1/probe": {
+          ok: false,
+          provider_reachable: true,
+          credentials_ok: true,
+          redirect_uri_ok: false,
+          error_code: "redirect_uri_mismatch",
+          error_detail:
+            "Google rejected the redirect_uri. Add EXACTLY 'https://x/...' as an Authorized redirect URI.",
+        },
+      }),
+    )) as {
+      verdict: string;
+      checks: { ok: boolean; name: string; details?: string }[];
+    };
+    expect(out.verdict).toBe("incomplete");
+    const fn = out.checks.find((c) => c.name === "idps_functional");
+    expect(fn?.ok).toBe(false);
+    expect(fn?.details).toContain("redirect_uri_mismatch");
+    expect(fn?.details).toContain("Google rejected");
+  });
+
+  it("idps_functional is reported as skipped when probe_idps=false (preserves backward compat)", async () => {
+    const out = (await prysmidSetupCheck.handler(
+      { workspace: "skipped", probe_idps: false },
+      ctx({
+        "/v1/workspaces/skipped": { state: "active" },
+        "/v1/workspaces/skipped/apps": { items: [{ id: "a" }], total: 1 },
+        "/v1/workspaces/skipped/idps": {
+          items: [{ id: "idp-1" }],
+          total: 1,
+        },
+        "/v1/workspaces/skipped/login-policy": {
+          allow_username_password: true,
+          allow_register: true,
+        },
+        "/v1/workspaces/skipped/branding": { primary_color: "#000" },
+      }),
+    )) as {
+      verdict: string;
+      checks: { ok: boolean; name: string; details?: string }[];
+    };
+    const fn = out.checks.find((c) => c.name === "idps_functional");
+    expect(fn?.ok).toBe(true);
+    expect(fn?.details).toContain("skipped");
+    expect(out.verdict).toBe("ready");
+  });
+
   it("auth_strength_reasonable celebrates when idps>0 and force_mfa off", async () => {
     const out = (await prysmidSetupCheck.handler(
-      { workspace: "delegated" },
+      { workspace: "delegated", probe_idps: false },
       ctx({
         "/v1/workspaces/delegated": { state: "active" },
         "/v1/workspaces/delegated/apps": { items: [{ id: "a" }], total: 1 },

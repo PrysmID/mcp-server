@@ -139,14 +139,32 @@ function countItems(resp: ListResp): number {
   return 0;
 }
 
+type IdpListItem = { id: string; name?: string; type?: string };
+type IdpListResp = ListResp & { items?: IdpListItem[] };
+type ProbeResp = {
+  ok: boolean;
+  provider_reachable: boolean;
+  credentials_ok?: boolean | null;
+  redirect_uri_ok?: boolean | null;
+  error_code?: string | null;
+  error_detail?: string | null;
+};
+
+function listOf(resp: ListResp): unknown[] {
+  if (Array.isArray(resp)) return resp;
+  if (Array.isArray(resp.items)) return resp.items;
+  return [];
+}
+
 export const prysmidSetupCheck = defineTool({
   name: "prysmid_setup_check",
   description:
-    "Run a readiness checklist on a workspace: state=active, ≥1 OIDC app, ≥1 IdP OR password+register enabled, branding has a primary_color set, login_policy reasonable. Returns pass/fail per item plus a summary verdict.",
+    "Run a readiness checklist on a workspace: state=active, ≥1 OIDC app, ≥1 IdP OR password+register enabled, branding has a primary_color set, login_policy reasonable, AND (by default) every external IdP probes successfully against its upstream provider. Returns pass/fail per item plus a summary verdict. Set `probe_idps=false` to skip the live probe (faster, but won't catch redirect_uri_mismatch or invalid client_secret until a real end-user hits the broken IdP).",
   inputShape: {
     workspace: z.string().min(1),
+    probe_idps: z.boolean().optional().default(true),
   },
-  handler: async ({ workspace }, { client }) => {
+  handler: async ({ workspace, probe_idps = true }, { client }) => {
     const ws = (await client.request(
       `/v1/workspaces/${encodeURIComponent(workspace)}`,
     )) as { state: string; auth_domain?: string };
@@ -155,7 +173,7 @@ export const prysmidSetupCheck = defineTool({
     )) as ListResp;
     const idpsResp = (await client.request(
       `/v1/workspaces/${encodeURIComponent(workspace)}/idps`,
-    )) as ListResp;
+    )) as IdpListResp;
     const policy = (await client.request(
       `/v1/workspaces/${encodeURIComponent(workspace)}/login-policy`,
     )) as {
@@ -172,6 +190,7 @@ export const prysmidSetupCheck = defineTool({
     // too so the check stays robust if the projection ever flips back.
     const appsCount = countItems(appsResp);
     const idpsCount = countItems(idpsResp);
+    const idpItems = listOf(idpsResp) as IdpListItem[];
     const passwordsOpen =
       policy.allow_username_password === true &&
       policy.allow_register === true;
@@ -211,6 +230,54 @@ export const prysmidSetupCheck = defineTool({
             : "MFA off and no external IdPs — passwords-only is weak",
       },
     ];
+
+    // Functional probe of each external IdP. Closes the gap where the
+    // checklist reported `ready` because the IdP record existed, but the
+    // OAuth flow was actually broken (redirect_uri_mismatch, invalid client_id)
+    // — discoverable only via real-world login. Default-on so casual users
+    // don't have to know to ask for it; opt-out via probe_idps=false for the
+    // rare case where the probe latency matters more than the safety.
+    if (probe_idps && idpItems.length > 0) {
+      const probeResults: { id: string; result: ProbeResp; error?: string }[] = [];
+      for (const idp of idpItems) {
+        try {
+          const probe = (await client.request(
+            `/v1/workspaces/${encodeURIComponent(workspace)}/idps/${encodeURIComponent(idp.id)}/probe`,
+            { method: "POST" },
+          )) as ProbeResp;
+          probeResults.push({ id: idp.id, result: probe });
+        } catch (err) {
+          probeResults.push({
+            id: idp.id,
+            result: { ok: false, provider_reachable: false },
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+      const allOk = probeResults.every((r) => r.result.ok);
+      const summary = probeResults
+        .map((r) => {
+          const code = r.result.error_code ? ` (${r.result.error_code})` : "";
+          return `${r.id}=${r.result.ok ? "ok" : "fail"}${code}`;
+        })
+        .join(", ");
+      const firstFailure = probeResults.find((r) => !r.result.ok);
+      const details = firstFailure
+        ? `${summary}. First failure: ${firstFailure.result.error_detail ?? firstFailure.error ?? "no detail"}`
+        : summary;
+      checks.push({
+        ok: allOk,
+        name: "idps_functional",
+        details,
+      });
+    } else if (idpItems.length > 0) {
+      checks.push({
+        ok: true,
+        name: "idps_functional",
+        details: "skipped (probe_idps=false); won't catch redirect_uri_mismatch or invalid_client until a real end-user signs in.",
+      });
+    }
+
     const verdict = checks.every((c) => c.ok) ? "ready" : "incomplete";
     return { verdict, checks };
   },
