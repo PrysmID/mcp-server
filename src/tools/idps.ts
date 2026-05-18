@@ -114,4 +114,19 @@ export const updateIdp = defineTool({
     ),
 });
 
-export const tools = [listIdps, addIdp, deleteIdp, getIdp, updateIdp] as const;
+export const probeIdp = defineTool({
+  name: "probe_idp",
+  description:
+    "Probe an external identity provider end-to-end against its upstream authorize endpoint. Catches redirect_uri_mismatch (URI not registered at Google Cloud / GitHub / etc.), invalid_client (client_id rotated or deleted upstream), and provider_unreachable failures BEFORE a real end-user hits them. Use after enable_google_login / add_idp, and any time you suspect the IdP is misconfigured. Today: Google + GitHub get full classification; Microsoft + OIDC generic return `skipped` for the deterministic dimensions (only reachability is verified).",
+  inputShape: {
+    workspace: z.string().min(1),
+    idp_id: z.string().min(1),
+  },
+  handler: async ({ workspace, idp_id }, { client }) =>
+    client.request(
+      `/v1/workspaces/${encodeURIComponent(workspace)}/idps/${encodeURIComponent(idp_id)}/probe`,
+      { method: "POST" },
+    ),
+});
+
+export const tools = [listIdps, addIdp, deleteIdp, getIdp, updateIdp, probeIdp] as const;
