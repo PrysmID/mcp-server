@@ -162,7 +162,12 @@ export const prysmidSetupCheck = defineTool({
     "Run a readiness checklist on a workspace: state=active, ≥1 OIDC app, ≥1 IdP OR password+register enabled, branding has a primary_color set, login_policy reasonable, AND (by default) every external IdP probes successfully against its upstream provider. Returns pass/fail per item plus a summary verdict. Set `probe_idps=false` to skip the live probe (faster, but won't catch redirect_uri_mismatch or invalid client_secret until a real end-user hits the broken IdP).",
   inputShape: {
     workspace: z.string().min(1),
-    probe_idps: z.boolean().optional().default(true),
+    probe_idps: z
+      .boolean()
+      .optional()
+      .describe(
+        "Run a live probe against each external IdP's upstream authorize endpoint. Default true. Set false to skip if the latency matters more than the safety (will not catch redirect_uri_mismatch or invalid_client until a real end-user signs in).",
+      ),
   },
   handler: async ({ workspace, probe_idps = true }, { client }) => {
     const ws = (await client.request(
