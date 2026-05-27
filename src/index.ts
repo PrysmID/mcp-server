@@ -31,8 +31,10 @@ import { tools as appsTools } from "./tools/apps.js";
 import { tools as billingTools } from "./tools/billing.js";
 import { tools as brandingTools } from "./tools/branding.js";
 import { tools as curatedTools } from "./tools/curated.js";
+import { tools as grantsTools } from "./tools/grants.js";
 import { tools as idpsTools } from "./tools/idps.js";
 import { tools as loginPolicyTools } from "./tools/login_policy.js";
+import { tools as organizationsTools } from "./tools/organizations.js";
 import { tools as usersTools } from "./tools/users.js";
 import { tools as workspaceTools } from "./tools/workspaces.js";
 import { generatedTools } from "./tools/generated/index.js";
@@ -86,6 +88,8 @@ const GENERATED_ALIASES: Readonly<Record<string, string>> = {
 export function composeToolset(): ToolDef<any>[] {
   const handwrittenAndCurated = [
     ...workspaceTools,
+    ...organizationsTools,
+    ...grantsTools,
     ...appsTools,
     ...idpsTools,
     ...loginPolicyTools,
