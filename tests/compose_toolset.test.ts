@@ -44,6 +44,22 @@ describe("composeToolset", () => {
       "setup_prysmid_workspace",
       "enable_google_login",
       "prysmid_setup_check",
+      // Slice 6 — multi-org + grants
+      "create_organization",
+      "list_organizations",
+      "get_organization",
+      "update_organization",
+      "deactivate_organization",
+      "reactivate_organization",
+      "delete_organization",
+      "ensure_consumer_organization",
+      "grant_user_to_organization",
+      "list_grants_in_organization",
+      "list_grants_for_user",
+      "update_grant_roles",
+      "deactivate_grant",
+      "reactivate_grant",
+      "revoke_grant",
     ]) {
       expect(names).toContain(expected);
     }
