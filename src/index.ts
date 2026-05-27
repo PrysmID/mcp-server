@@ -34,6 +34,7 @@ import { tools as curatedTools } from "./tools/curated.js";
 import { tools as grantsTools } from "./tools/grants.js";
 import { tools as idpsTools } from "./tools/idps.js";
 import { tools as loginPolicyTools } from "./tools/login_policy.js";
+import { tools as orgDomainsTools } from "./tools/org_domains.js";
 import { tools as organizationsTools } from "./tools/organizations.js";
 import { tools as usersTools } from "./tools/users.js";
 import { tools as webhooksTools } from "./tools/webhooks.js";
@@ -90,6 +91,7 @@ export function composeToolset(): ToolDef<any>[] {
   const handwrittenAndCurated = [
     ...workspaceTools,
     ...organizationsTools,
+    ...orgDomainsTools,
     ...grantsTools,
     ...appsTools,
     ...idpsTools,
