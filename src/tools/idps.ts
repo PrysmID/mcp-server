@@ -21,6 +21,33 @@ const orgIdArg = z
     "Optional Zitadel org id to scope this operation to a specific business org inside the workspace. Omit for the workspace's home org (backwards-compat).",
   );
 
+// X6: JIT + linking behaviour. All fields optional — omitted fields fall
+// back to the Prysm:ID defaults on create, or preserve current state on
+// patch. See platform/api/app/schemas/idp.py:IdpProviderOptions for the
+// canonical contract.
+const providerOptionsSchema = z
+  .object({
+    is_creation_allowed: z.boolean().optional(),
+    is_auto_creation: z
+      .boolean()
+      .optional()
+      .describe(
+        "JIT provisioning: True auto-creates a Prysm:ID user on first external login. The most common X6 flag — set False for tightly-controlled enterprise tenants where seats are granted manually.",
+      ),
+    is_auto_update: z.boolean().optional(),
+    is_linking_allowed: z.boolean().optional(),
+    auto_linking: z
+      .enum(["unspecified", "username", "email"])
+      .optional()
+      .describe(
+        "How to merge an external first-login into an existing Prysm:ID user. `username` matches user_name, `email` matches verified email, `unspecified` disables auto-linking.",
+      ),
+  })
+  .optional()
+  .describe(
+    "X6: JIT + linking behaviour. Omitted fields fall back to defaults on create (auto-create + auto-update + link-by-username) or preserve current state on patch.",
+  );
+
 export const listIdps = defineTool({
   name: "list_idps",
   description:
@@ -38,7 +65,7 @@ export const listIdps = defineTool({
 export const addIdp = defineTool({
   name: "add_idp",
   description:
-    "Add an identity provider to the workspace and attach it to the login policy in one atomic call. Pass `org_id` to attach the IdP to a specific business org (multi-tenant setup) instead of the workspace's home org.",
+    "Add an identity provider to the workspace and attach it to the login policy in one atomic call. Pass `org_id` to attach the IdP to a specific business org (multi-tenant setup) instead of the workspace's home org. Pass `provider_options` to control JIT provisioning + account-linking behaviour (X6).",
   inputShape: {
     workspace: z.string().min(1),
     org_id: orgIdArg,
@@ -60,6 +87,7 @@ export const addIdp = defineTool({
       .describe(
         "Optional for `microsoft` — lock to a specific Entra tenant GUID. Default accepts any account.",
       ),
+    provider_options: providerOptionsSchema,
   },
   handler: async ({ workspace, org_id, ...body }, { client }) =>
     client.request(`/v1/workspaces/${encodeURIComponent(workspace)}/idps`, {
@@ -104,7 +132,7 @@ export const getIdp = defineTool({
 export const updateIdp = defineTool({
   name: "update_idp",
   description:
-    "Patch mutable fields on an identity provider. All fields optional. Passing client_secret rotates the upstream-issued value (Google/GitHub/Microsoft/OIDC client secret stored in Prysmid). Passing client_id retargets to a different upstream client. issuer/tenant_id apply only when relevant to the IdP type. Pass `org_id` to scope to a business org.",
+    "Patch mutable fields on an identity provider. All fields optional. Passing client_secret rotates the upstream-issued value (Google/GitHub/Microsoft/OIDC client secret stored in Prysmid). Passing client_id retargets to a different upstream client. issuer/tenant_id apply only when relevant to the IdP type. Pass `org_id` to scope to a business org. Pass `provider_options` to flip JIT or linking flags — only the keys you set change, others are preserved (X6).",
   inputShape: {
     workspace: z.string().min(1),
     org_id: orgIdArg,
@@ -128,6 +156,7 @@ export const updateIdp = defineTool({
       .string()
       .optional()
       .describe("Only meaningful for type=microsoft (Entra tenant GUID)."),
+    provider_options: providerOptionsSchema,
   },
   handler: async ({ workspace, org_id, idp_id, ...patch }, { client }) =>
     client.request(
