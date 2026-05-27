@@ -66,6 +66,12 @@ describe("composeToolset", () => {
       "get_webhook_endpoint",
       "update_webhook_endpoint",
       "delete_webhook_endpoint",
+      // P3a-4 — per-org domain CRUD + verification
+      "list_organization_domains",
+      "add_organization_domain",
+      "generate_organization_domain_verification",
+      "verify_organization_domain",
+      "delete_organization_domain",
     ]) {
       expect(names).toContain(expected);
     }
