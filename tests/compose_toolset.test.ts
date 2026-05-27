@@ -60,6 +60,12 @@ describe("composeToolset", () => {
       "deactivate_grant",
       "reactivate_grant",
       "revoke_grant",
+      // W4 — outbound webhooks
+      "create_webhook_endpoint",
+      "list_webhook_endpoints",
+      "get_webhook_endpoint",
+      "update_webhook_endpoint",
+      "delete_webhook_endpoint",
     ]) {
       expect(names).toContain(expected);
     }
