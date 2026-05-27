@@ -50,10 +50,10 @@ describe("list_organization_domains", () => {
       { workspace: "ws-1", org_id: "ORG-9" },
       ctx(client),
     );
-    expect(calls[0].path).toBe(
+    expect(calls[0]!.path).toBe(
       "/v1/workspaces/ws-1/organizations/ORG-9/domains",
     );
-    expect(calls[0].method).toBe("GET");
+    expect(calls[0]!.method).toBe("GET");
   });
 });
 
@@ -64,7 +64,7 @@ describe("add_organization_domain", () => {
       { workspace: "ws-1", org_id: "ORG-9", domain: "acme.com" },
       ctx(client),
     );
-    expect(calls[0]).toMatchObject({
+    expect(calls[0]!).toMatchObject({
       path: "/v1/workspaces/ws-1/organizations/ORG-9/domains",
       method: "POST",
       body: { domain: "acme.com" },
@@ -88,7 +88,7 @@ describe("generate_organization_domain_verification", () => {
       { workspace: "ws-1", org_id: "ORG-9", domain: "acme.com", method: "dns" },
       ctx(client),
     );
-    expect(calls[0]).toMatchObject({
+    expect(calls[0]!).toMatchObject({
       path: "/v1/workspaces/ws-1/organizations/ORG-9/domains/acme.com/_generate_verification",
       method: "POST",
       body: { method: "dns" },
@@ -106,7 +106,7 @@ describe("generate_organization_domain_verification", () => {
       },
       ctx(client),
     );
-    expect(calls[0].body).toEqual({ method: "http" });
+    expect(calls[0]!.body).toEqual({ method: "http" });
   });
 });
 
@@ -117,7 +117,7 @@ describe("verify_organization_domain", () => {
       { workspace: "ws-1", org_id: "ORG-9", domain: "acme.com" },
       ctx(client),
     );
-    expect(calls[0]).toMatchObject({
+    expect(calls[0]!).toMatchObject({
       path: "/v1/workspaces/ws-1/organizations/ORG-9/domains/acme.com/_verify",
       method: "POST",
     });
@@ -131,7 +131,7 @@ describe("delete_organization_domain", () => {
       { workspace: "ws-1", org_id: "ORG-9", domain: "acme.com" },
       ctx(client),
     );
-    expect(calls[0]).toMatchObject({
+    expect(calls[0]!).toMatchObject({
       path: "/v1/workspaces/ws-1/organizations/ORG-9/domains/acme.com",
       method: "DELETE",
     });

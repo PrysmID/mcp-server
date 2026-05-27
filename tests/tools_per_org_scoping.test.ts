@@ -56,13 +56,13 @@ describe("idps tools — org_id propagation", () => {
       { workspace: "ws-1", org_id: "ORG-9" },
       ctx(client),
     );
-    expect(calls[0].query).toEqual({ org_id: "ORG-9" });
+    expect(calls[0]!.query).toEqual({ org_id: "ORG-9" });
   });
 
   it("list_idps without org_id leaves the query undefined", async () => {
     const { client, calls } = recordingClient({ items: [], total: 0 });
     await listIdps.handler({ workspace: "ws-1" }, ctx(client));
-    expect(calls[0].query).toEqual({ org_id: undefined });
+    expect(calls[0]!.query).toEqual({ org_id: undefined });
   });
 
   it("add_idp forwards org_id and does not include it in the body", async () => {
@@ -78,9 +78,9 @@ describe("idps tools — org_id propagation", () => {
       },
       ctx(client),
     );
-    expect(calls[0].query).toEqual({ org_id: "ORG-9" });
-    expect(calls[0].body).toMatchObject({ type: "google", name: "Google" });
-    expect((calls[0].body as Record<string, unknown>).org_id).toBeUndefined();
+    expect(calls[0]!.query).toEqual({ org_id: "ORG-9" });
+    expect(calls[0]!.body).toMatchObject({ type: "google", name: "Google" });
+    expect((calls[0]!.body as Record<string, unknown>).org_id).toBeUndefined();
   });
 
   it.each([
@@ -92,8 +92,8 @@ describe("idps tools — org_id propagation", () => {
       { workspace: "ws-1", org_id: "ORG-9", idp_id: "idp-1" },
       ctx(client),
     );
-    expect(calls[0].method).toBe(method);
-    expect(calls[0].query).toEqual({ org_id: "ORG-9" });
+    expect(calls[0]!.method).toBe(method);
+    expect(calls[0]!.query).toEqual({ org_id: "ORG-9" });
   });
 
   it("update_idp forwards org_id and patch body", async () => {
@@ -107,8 +107,8 @@ describe("idps tools — org_id propagation", () => {
       },
       ctx(client),
     );
-    expect(calls[0].query).toEqual({ org_id: "ORG-9" });
-    expect(calls[0].body).toEqual({ client_secret: "new-secret" });
+    expect(calls[0]!.query).toEqual({ org_id: "ORG-9" });
+    expect(calls[0]!.body).toEqual({ client_secret: "new-secret" });
   });
 
   it("probe_idp forwards org_id", async () => {
@@ -117,8 +117,8 @@ describe("idps tools — org_id propagation", () => {
       { workspace: "ws-1", org_id: "ORG-9", idp_id: "idp-1" },
       ctx(client),
     );
-    expect(calls[0].path).toBe("/v1/workspaces/ws-1/idps/idp-1/probe");
-    expect(calls[0].query).toEqual({ org_id: "ORG-9" });
+    expect(calls[0]!.path).toBe("/v1/workspaces/ws-1/idps/idp-1/probe");
+    expect(calls[0]!.query).toEqual({ org_id: "ORG-9" });
   });
 });
 
@@ -129,7 +129,7 @@ describe("login_policy tools — org_id + allow_domain_discovery", () => {
       { workspace: "ws-1", org_id: "ORG-9" },
       ctx(client),
     );
-    expect(calls[0]).toMatchObject({
+    expect(calls[0]!).toMatchObject({
       path: "/v1/workspaces/ws-1/login-policy",
       method: "GET",
       query: { org_id: "ORG-9" },
@@ -147,16 +147,16 @@ describe("login_policy tools — org_id + allow_domain_discovery", () => {
       },
       ctx(client),
     );
-    expect(calls[0]).toMatchObject({
+    expect(calls[0]!).toMatchObject({
       path: "/v1/workspaces/ws-1/login-policy",
       method: "PATCH",
       query: { org_id: "ORG-9" },
     });
-    expect(calls[0].body).toEqual({
+    expect(calls[0]!.body).toEqual({
       allow_domain_discovery: true,
       force_mfa: true,
     });
-    expect((calls[0].body as Record<string, unknown>).org_id).toBeUndefined();
+    expect((calls[0]!.body as Record<string, unknown>).org_id).toBeUndefined();
   });
 
   it("update_login_policy second_factors enum validates", () => {
