@@ -9,7 +9,7 @@
  *
  * Schema mirrors the platform API's `LoginPolicyView/Update`:
  *   - allow_username_password / allow_register / allow_external_idp
- *   - force_mfa, passwordless_allowed (bool, NOT a string enum)
+ *   - force_mfa, force_mfa_local_only, passwordless_allowed (bool, NOT a string enum)
  *   - second_factors: list of {otp, u2f, otp_email, otp_sms}
  *   - multi_factors: list of {u2f_verified}
  *   - hide_password_reset, ignore_unknown_usernames
@@ -59,6 +59,12 @@ export const updateLoginPolicy = defineTool({
       .boolean()
       .optional()
       .describe("Require any second factor at login."),
+    force_mfa_local_only: z
+      .boolean()
+      .optional()
+      .describe(
+        "X2: require MFA only for username/password logins, exempting external-IdP logins (which may already enforce MFA upstream). Only meaningful when force_mfa is also true.",
+      ),
     passwordless_allowed: z
       .boolean()
       .optional()
