@@ -159,6 +159,24 @@ describe("login_policy tools — org_id + allow_domain_discovery", () => {
     expect((calls[0]!.body as Record<string, unknown>).org_id).toBeUndefined();
   });
 
+  it("update_login_policy threads force_mfa_local_only (X2)", async () => {
+    const { client, calls } = recordingClient({});
+    await updateLoginPolicy.handler(
+      {
+        workspace: "ws-1",
+        org_id: "ORG-9",
+        force_mfa: true,
+        force_mfa_local_only: true,
+      },
+      ctx(client),
+    );
+    expect(calls[0]!.body).toEqual({
+      force_mfa: true,
+      force_mfa_local_only: true,
+    });
+    expect(calls[0]!.query).toEqual({ org_id: "ORG-9" });
+  });
+
   it("update_login_policy second_factors enum validates", () => {
     const parsed = updateLoginPolicy.inputShape.second_factors.safeParse([
       "otp",
