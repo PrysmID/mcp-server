@@ -72,6 +72,10 @@ describe("composeToolset", () => {
       "generate_organization_domain_verification",
       "verify_organization_domain",
       "delete_organization_domain",
+      // X3 — service accounts per-org
+      "list_service_accounts",
+      "create_service_account",
+      "delete_service_account",
     ]) {
       expect(names).toContain(expected);
     }
