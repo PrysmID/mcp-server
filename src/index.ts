@@ -36,6 +36,7 @@ import { tools as idpsTools } from "./tools/idps.js";
 import { tools as loginPolicyTools } from "./tools/login_policy.js";
 import { tools as orgDomainsTools } from "./tools/org_domains.js";
 import { tools as organizationsTools } from "./tools/organizations.js";
+import { tools as serviceAccountsTools } from "./tools/service_accounts.js";
 import { tools as usersTools } from "./tools/users.js";
 import { tools as webhooksTools } from "./tools/webhooks.js";
 import { tools as workspaceTools } from "./tools/workspaces.js";
@@ -96,6 +97,7 @@ export function composeToolset(): ToolDef<any>[] {
     ...appsTools,
     ...idpsTools,
     ...loginPolicyTools,
+    ...serviceAccountsTools,
     ...usersTools,
     ...brandingTools,
     ...billingTools,
