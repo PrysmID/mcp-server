@@ -78,6 +78,8 @@ describe("composeToolset", () => {
       "delete_service_account",
       // X4 — audit log export
       "export_audit_log",
+      // P2e — consented domain claim
+      "reconcile_organization_domain_claims",
     ]) {
       expect(names).toContain(expected);
     }

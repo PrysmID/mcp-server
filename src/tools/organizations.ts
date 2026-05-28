@@ -72,17 +72,38 @@ export const getOrganization = defineTool({
 export const updateOrganization = defineTool({
   name: "update_organization",
   description:
-    "Rename an organization and/or toggle `allow_register`. Sparse — omit fields to leave them untouched. Rename propagates to Zitadel synchronously.",
+    "Rename an organization and/or toggle `allow_register` / `domain_auto_claim`. Sparse — omit fields to leave them untouched. Rename propagates to Zitadel synchronously.",
   inputShape: {
     workspace: z.string().min(1),
     org_id: z.string().min(1),
     name: z.string().min(1).max(255).optional(),
     allow_register: z.boolean().optional(),
+    domain_auto_claim: z
+      .boolean()
+      .optional()
+      .describe(
+        "P2e opt-in: when True, verifying a domain on this org (or calling reconcile_organization_domain_claims) auto-grants the org access over consumer-org users with a matching verified email domain. Public domains are always excluded; the user's home org is never moved (the claim is an additional, revocable grant).",
+      ),
   },
   handler: async ({ workspace, org_id, ...body }, { client }) =>
     client.request(
       `/v1/workspaces/${encodeURIComponent(workspace)}/organizations/${encodeURIComponent(org_id)}`,
       { method: "PATCH", body },
+    ),
+});
+
+export const reconcileOrganizationDomainClaims = defineTool({
+  name: "reconcile_organization_domain_claims",
+  description:
+    "P2e: grant this org access over consumer-org users whose verified email domain matches one of the org's verified domains. Idempotent and re-runnable — catches users who self-registered after a domain was verified. Requires domain_auto_claim=true on the org (returns skipped with a reason otherwise). Public email domains are always excluded; the user's home org is never moved. Returns counts: granted / already_present / candidates + the domains matched.",
+  inputShape: {
+    workspace: z.string().min(1),
+    org_id: z.string().min(1),
+  },
+  handler: async ({ workspace, org_id }, { client }) =>
+    client.request(
+      `/v1/workspaces/${encodeURIComponent(workspace)}/organizations/${encodeURIComponent(org_id)}/_reconcile-domain-claims`,
+      { method: "POST" },
     ),
 });
 
@@ -149,6 +170,7 @@ export const tools = [
   listOrganizations,
   getOrganization,
   updateOrganization,
+  reconcileOrganizationDomainClaims,
   deactivateOrganization,
   reactivateOrganization,
   deleteOrganization,
