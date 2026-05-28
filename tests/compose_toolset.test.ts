@@ -76,6 +76,8 @@ describe("composeToolset", () => {
       "list_service_accounts",
       "create_service_account",
       "delete_service_account",
+      // X4 — audit log export
+      "export_audit_log",
     ]) {
       expect(names).toContain(expected);
     }

@@ -28,6 +28,7 @@ import { makeLogger, type Logger } from "./logger.js";
 import { clearToken, loadToken, saveToken } from "./tokenStore.js";
 import { registerAll, type ToolDef } from "./tools/registry.js";
 import { tools as appsTools } from "./tools/apps.js";
+import { tools as auditTools } from "./tools/audit.js";
 import { tools as billingTools } from "./tools/billing.js";
 import { tools as brandingTools } from "./tools/branding.js";
 import { tools as curatedTools } from "./tools/curated.js";
@@ -98,6 +99,7 @@ export function composeToolset(): ToolDef<any>[] {
     ...idpsTools,
     ...loginPolicyTools,
     ...serviceAccountsTools,
+    ...auditTools,
     ...usersTools,
     ...brandingTools,
     ...billingTools,
