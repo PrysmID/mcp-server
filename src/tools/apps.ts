@@ -7,6 +7,25 @@ import { z } from "zod";
 
 import { defineTool } from "./registry.js";
 
+// Shared OIDC enums. Declared here (before the tools that reference them) so
+// create/update share one source of truth and there's no temporal-dead-zone
+// hazard from using them earlier in the module.
+const APP_TYPE = z.enum(["web", "spa", "native"]);
+const AUTH_METHOD = z.enum([
+  "client_secret_basic",
+  "client_secret_post",
+  "none",
+  "private_key_jwt",
+]);
+const GRANT_TYPE = z.enum([
+  "authorization_code",
+  "refresh_token",
+  "implicit",
+  "device_code",
+  "token_exchange",
+]);
+const ACCESS_TOKEN_TYPE = z.enum(["bearer", "jwt"]);
+
 export const listApps = defineTool({
   name: "list_apps",
   description: "List all OIDC apps in a workspace.",
@@ -20,13 +39,22 @@ export const listApps = defineTool({
 export const createOidcApp = defineTool({
   name: "create_oidc_app",
   description:
-    "Create an OIDC application in a workspace. Returns client_id (and client_secret only when app_type=web). app_type=web is a confidential server-rendered app; spa and native are public clients that use PKCE and have no secret.",
+    "Create an OIDC application in a workspace. Returns client_id (and client_secret only when app_type=web). app_type=web is a confidential server-rendered app; spa and native are public clients that use PKCE and have no secret. Pass grant_types to enable e.g. device_code for a CLI/headless client in one call (default is authorization_code + refresh_token). access_token_type defaults to jwt (validatable offline via JWKS); use bearer only if the resource server validates by introspection.",
   inputShape: {
     workspace: z.string().min(1),
     name: z.string().min(1).max(255),
     redirect_uris: z.array(z.string().url()).min(1),
     post_logout_redirect_uris: z.array(z.string().url()).optional(),
-    app_type: z.enum(["web", "spa", "native"]).default("web"),
+    app_type: APP_TYPE.default("web"),
+    grant_types: z
+      .array(GRANT_TYPE)
+      .optional()
+      .describe(
+        "OAuth grant types to enable. Omit for [authorization_code, refresh_token]. Include device_code for a CLI/device-flow client.",
+      ),
+    access_token_type: ACCESS_TOKEN_TYPE.optional().describe(
+      "jwt (default) for offline JWKS validation; bearer for opaque tokens requiring introspection.",
+    ),
     dev_mode: z
       .boolean()
       .default(false)
@@ -55,21 +83,6 @@ export const deleteOidcApp = defineTool({
     ),
 });
 
-const APP_TYPE = z.enum(["web", "spa", "native"]);
-const AUTH_METHOD = z.enum([
-  "client_secret_basic",
-  "client_secret_post",
-  "none",
-  "private_key_jwt",
-]);
-const GRANT_TYPE = z.enum([
-  "authorization_code",
-  "refresh_token",
-  "implicit",
-  "device_code",
-  "token_exchange",
-]);
-
 export const getApp = defineTool({
   name: "get_app",
   description:
@@ -87,7 +100,7 @@ export const getApp = defineTool({
 export const updateApp = defineTool({
   name: "update_app",
   description:
-    "Patch mutable fields on an OIDC app: redirect URIs, post-logout URIs, grant types, auth method, dev_mode. All fields optional — only provided keys change. client_secret is NEVER accepted here; use regenerate_app_secret to rotate it.",
+    "Patch mutable fields on an OIDC app: redirect URIs, post-logout URIs, grant types, auth method, access_token_type, dev_mode. All fields optional — only provided keys change. client_secret is NEVER accepted here; use regenerate_app_secret to rotate it.",
   inputShape: {
     workspace: z.string().min(1),
     app_id: z.string().min(1),
@@ -95,6 +108,9 @@ export const updateApp = defineTool({
     post_logout_redirect_uris: z.array(z.string().url()).optional(),
     grant_types: z.array(GRANT_TYPE).optional(),
     auth_method: AUTH_METHOD.optional(),
+    access_token_type: ACCESS_TOKEN_TYPE.optional().describe(
+      "jwt for offline JWKS validation; bearer for opaque tokens requiring introspection.",
+    ),
     dev_mode: z
       .boolean()
       .optional()
