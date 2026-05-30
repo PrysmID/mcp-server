@@ -60,6 +60,43 @@ describe("create_oidc_app tool", () => {
     expect(body.app_type).toBe("web");
     expect(body).not.toHaveProperty("auth_method");
   });
+
+  it("forwards grant_types and access_token_type so a CLI/device-flow client is one call", async () => {
+    const mock = global.fetch as unknown as ReturnType<typeof vi.fn>;
+    mock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ id: "app-2", clientId: "c-2" }), {
+        status: 201,
+      }),
+    );
+
+    await createOidcApp.handler(
+      {
+        workspace: "acme",
+        name: "Acme CLI",
+        redirect_uris: ["http://localhost:8765/callback"],
+        app_type: "native",
+        grant_types: ["authorization_code", "refresh_token", "device_code"],
+        access_token_type: "jwt",
+        dev_mode: true,
+      },
+      { client: client(), log: makeLogger({ logLevel: "error" }) },
+    );
+    const [, init] = mock.mock.calls[0]!;
+    const body = JSON.parse(init.body as string);
+    expect(body.app_type).toBe("native");
+    expect(body.grant_types).toEqual([
+      "authorization_code",
+      "refresh_token",
+      "device_code",
+    ]);
+    expect(body.access_token_type).toBe("jwt");
+  });
+
+  it("rejects an unknown grant_type at schema parse time", () => {
+    const schema = createOidcApp.inputShape.grant_types;
+    expect(schema.safeParse(["device_code"]).success).toBe(true);
+    expect(schema.safeParse(["totally_made_up"]).success).toBe(false);
+  });
 });
 
 describe("add_idp tool", () => {
@@ -155,6 +192,25 @@ describe("update_app tool", () => {
     // client_secret is forbidden on this endpoint — we don't surface it in the
     // schema at all, so the agent literally cannot send it through this tool.
     expect(sent).not.toHaveProperty("client_secret");
+  });
+
+  it("can patch access_token_type (e.g. switch a client to opaque/introspection)", async () => {
+    const mock = global.fetch as unknown as ReturnType<typeof vi.fn>;
+    mock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ id: "app-1" }), { status: 200 }),
+    );
+
+    await updateApp.handler(
+      {
+        workspace: "acme",
+        app_id: "app-1",
+        access_token_type: "bearer",
+      },
+      { client: client(), log: makeLogger({ logLevel: "error" }) },
+    );
+    const [, init] = mock.mock.calls[0]!;
+    const sent = JSON.parse(init.body as string);
+    expect(sent).toEqual({ access_token_type: "bearer" });
   });
 });
 
