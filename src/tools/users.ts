@@ -46,6 +46,27 @@ export const inviteUser = defineTool({
     ),
 });
 
+export const startUserPasskey = defineTool({
+  name: "start_user_passkey",
+  description:
+    "Start passkey (WebAuthn) enrollment for an end user. Default delivery='email': Zitadel mails the registration link to the user — safe, the link never transits this tool. delivery='link' returns the raw link: it is a BEARER CREDENTIAL (whoever opens it enrolls THEIR authenticator on the account, and with passwordless allowed that passkey signs in without password or TOTP). Only request 'link' for controlled support flows, never print or log it. The user must exist (404 user.not_found otherwise); requires the workspace login policy to allow passwordless for the passkey to be usable at sign-in.",
+  inputShape: {
+    workspace: z.string().min(1),
+    user_id: z.string().min(1),
+    delivery: z
+      .enum(["email", "link"])
+      .default("email")
+      .describe(
+        "email (default): Zitadel mails the link to the user. link: returns the raw registration link — sensitive, handle as a secret.",
+      ),
+  },
+  handler: async ({ workspace, user_id, delivery }, { client }) =>
+    client.request(
+      `/v1/workspaces/${encodeURIComponent(workspace)}/users/${encodeURIComponent(user_id)}/passwordless`,
+      { method: "POST", body: { delivery } },
+    ),
+});
+
 export const deleteUser = defineTool({
   name: "delete_user",
   description: "Delete a user by id. Idempotent.",
@@ -60,4 +81,4 @@ export const deleteUser = defineTool({
     ),
 });
 
-export const tools = [listUsers, inviteUser, deleteUser] as const;
+export const tools = [listUsers, inviteUser, startUserPasskey, deleteUser] as const;
