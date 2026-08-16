@@ -1,0 +1,24 @@
+# Dependency update automation. See platform/.github/dependabot.yml for the
+# rationale (2026-08-16 stack audit: nothing was watching for version drift).
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "security"]
+    groups:
+      npm-minor-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels: ["dependencies", "ci"]
+    groups:
+      actions-minor-patch:
+        update-types: ["minor", "patch"]
