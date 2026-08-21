@@ -20,7 +20,7 @@ Ya está provisioned (lo creé desde app.prysmid.com):
 - Esto es **Codex**, no Claude Code. El config vive en `~/.codex/config.toml` (Linux/macOS) o `%USERPROFILE%\.codex\config.toml` (Windows). El registro del MCP es por TOML, no por CLI tipo `claude mcp add`.
 - El MCP de Prysm:ID es **stdio** (subprocess local). NO es HTTP, NO uses `serverUrl`, NO uses `--transport http`.
 - El env var correcto es `PRYSMID_API_TOKEN` (no `PRYSMID_TOKEN`).
-- No pidas secretos por chat. Si ya hay un token cacheado en disco o un PAT en el secret store del proyecto, reusalo.
+- No pidas secretos por chat. Si ya hay un token cacheado en disco o un token en el secret store del proyecto, reusalo.
 - Si una acción ya está hecha, no la repitas. Verificá estado primero, mutá solo si hay diferencia real.
 - Si el workspace, el IdP o la app ya existen, reusá lo existente en vez de crear duplicados.
 
@@ -37,10 +37,11 @@ El MCP de Prysm:ID soporta dos modos de auth, mutuamente excluyentes:
 - Sesiones futuras de Codex levantan el token cacheado sin re-auth hasta que expire (~12 hs; con refresh, hasta ~30 días).
 - **Problema con stdio en Codex**: stderr del subprocess MCP no es un TTY → la lib de device flow normalmente se rehúsa a prompt. Solución: setear `PRYSMID_FORCE_DEVICE_FLOW=1` en el env del MCP, lo que fuerza la emisión del banner igual. Codex muestra stderr del MCP en su panel de logs.
 
-**Modo B — token estático (para CI / automatización)**
-- Seteás `PRYSMID_API_TOKEN=pat_...` en el env del MCP con un PAT generado desde `app.prysmid.com`.
-- No hay device flow, no hay banner; el MCP usa el token directo.
-- Solo conviene para entornos sin browser local.
+**Modo B — bearer estático (para CI / automatización)**
+- Seteás `PRYSMID_API_TOKEN=<access token>` en el env del MCP. No hay device flow, no hay banner; el MCP manda ese valor tal cual en `Authorization: Bearer`.
+- **Prysm:ID todavía no emite tokens de larga duración.** No existen PATs en `app.prysmid.com`. El único token que la API acepta hoy es un access token de Zitadel del device flow — el mismo que el modo A cachea en `token.json` — y caduca en ~12 hs.
+- Por eso el modo B sirve para un job de CI que corre dentro de esa ventana, y **no** para un servidor desatendido: el token se muere y las llamadas pasan a dar 401.
+- Las service accounts de workspace (`POST /v1/workspaces/{ws}/service-accounts`) **no** sirven para esto: su token no autentica contra `api.prysmid.com`.
 
 **Default recomendado: Modo A** salvo que yo te indique lo contrario.
 
@@ -99,7 +100,7 @@ enabled = true
 PRYSMID_FORCE_DEVICE_FLOW = "1"
 ```
 
-**Modo B (token estático, solo si yo lo pido)**: agregá `PRYSMID_API_TOKEN = "pat_..."` al bloque `[mcp_servers.prysmid.env]` y omitir `PRYSMID_FORCE_DEVICE_FLOW`.
+**Modo B (bearer estático, solo si yo lo pido)**: agregá `PRYSMID_API_TOKEN = "<access token>"` al bloque `[mcp_servers.prysmid.env]` y omitir `PRYSMID_FORCE_DEVICE_FLOW`. Ojo: caduca en ~12 hs (ver "Modelo de auth").
 
 Si el bloque ya existe pero tiene una forma equivalente con orden de keys distinto, no lo reescribas — el formato TOML no es sensible al orden.
 

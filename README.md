@@ -50,10 +50,16 @@ claude mcp add prysmid -- npx -y @prysmid/mcp
 
 Three modes, resolved in this order on every startup:
 
-1. **Static bearer** — set `PRYSMID_API_TOKEN`. Best for CI / service accounts:
+1. **Static bearer** — set `PRYSMID_API_TOKEN`; it is sent verbatim as
+   `Authorization: Bearer`:
    ```bash
-   PRYSMID_API_TOKEN=ptkn_… npx -y @prysmid/mcp
+   PRYSMID_API_TOKEN="$MY_ACCESS_TOKEN" npx -y @prysmid/mcp
    ```
+   **No PAT issuance exists yet**, and workspace service accounts cannot
+   authenticate against the API. The only credential accepted today is a
+   Zitadel access token from the device flow (modes 2 and 3 below), which
+   expires in ~12h — enough for a CI job inside that window, not for an
+   unattended server.
 2. **Cached device-flow token** — if a previous run completed device flow,
    the access token lives at:
    - Linux/macOS: `$XDG_CONFIG_HOME/prysmid-mcp/token.json` (default `~/.config/prysmid-mcp/token.json`)
@@ -84,7 +90,7 @@ claude mcp add prysmid -- npx -y github:PrysmID/mcp-server          # tip of mai
 | Env var | Default | Notes |
 |---|---|---|
 | `PRYSMID_API_BASE` | `https://api.prysmid.com` | Override for self-hosted Prysmid |
-| `PRYSMID_API_TOKEN` | — | Static bearer (skip device flow) |
+| `PRYSMID_API_TOKEN` | — | Static bearer (skip device flow). Short-lived access token — no PATs yet, see [Authentication](#authentication) |
 | `PRYSMID_MCP_LOG_LEVEL` | `info` | `debug` for verbose tool tracing |
 | `PRYSMID_FORCE_DEVICE_FLOW` | — | Set to any non-empty value to run device flow even when stderr is not a TTY |
 

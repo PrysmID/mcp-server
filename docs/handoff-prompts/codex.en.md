@@ -20,7 +20,7 @@ Already provisioned (I created it from app.prysmid.com):
 - This is **Codex**, not Claude Code. The config lives at `~/.codex/config.toml` (Linux/macOS) or `%USERPROFILE%\.codex\config.toml` (Windows). MCP registration is via TOML, not via a CLI command like `claude mcp add`.
 - The Prysm:ID MCP is **stdio** (local subprocess). It is NOT HTTP, do NOT use `serverUrl`, do NOT use `--transport http`.
 - The correct env var is `PRYSMID_API_TOKEN` (not `PRYSMID_TOKEN`).
-- Don't ask for secrets in chat. If a token is already cached on disk or a PAT exists in the project's secret store, reuse it.
+- Don't ask for secrets in chat. If a token is already cached on disk or one exists in the project's secret store, reuse it.
 - If an action is already done, don't repeat it. Verify state first; mutate only on real difference.
 - If the workspace, IdP or app already exist, reuse them — don't create duplicates.
 
@@ -37,10 +37,11 @@ The Prysm:ID MCP supports two mutually exclusive auth modes:
 - Future Codex sessions pick up the cached token without re-auth until it expires (~12h; refresh extends it ~30 days).
 - **Stdio caveat in Codex**: the MCP subprocess's stderr is not a TTY → the device-flow lib normally refuses to prompt. Fix: set `PRYSMID_FORCE_DEVICE_FLOW=1` in the MCP env so the banner is emitted regardless. Codex shows the MCP's stderr in its logs panel.
 
-**Mode B — static token (CI / automation)**
-- Set `PRYSMID_API_TOKEN=pat_...` in the MCP env with a PAT generated from `app.prysmid.com`.
-- No device flow, no banner; the MCP uses the token directly.
-- Only sensible for environments without a local browser.
+**Mode B — static bearer (CI / automation)**
+- Set `PRYSMID_API_TOKEN=<access token>` in the MCP env. No device flow, no banner; the MCP sends that value verbatim as `Authorization: Bearer`.
+- **Prysm:ID does not issue long-lived tokens yet.** There are no PATs on `app.prysmid.com`. The only token the API accepts today is a Zitadel access token from the device flow — the same one mode A caches in `token.json` — and it expires in ~12h.
+- So mode B fits a CI job that runs inside that window, and **not** an unattended server: the token dies and calls start returning 401.
+- Workspace service accounts (`POST /v1/workspaces/{ws}/service-accounts`) are **not** a substitute: their token does not authenticate against `api.prysmid.com`.
 
 **Recommended default: Mode A** unless I tell you otherwise.
 
@@ -99,7 +100,7 @@ enabled = true
 PRYSMID_FORCE_DEVICE_FLOW = "1"
 ```
 
-**Mode B (static token, only if I ask)**: add `PRYSMID_API_TOKEN = "pat_..."` to `[mcp_servers.prysmid.env]` and omit `PRYSMID_FORCE_DEVICE_FLOW`.
+**Mode B (static bearer, only if I ask)**: add `PRYSMID_API_TOKEN = "<access token>"` to `[mcp_servers.prysmid.env]` and omit `PRYSMID_FORCE_DEVICE_FLOW`. Note it expires in ~12h (see "Auth model").
 
 If the block already exists with an equivalent shape but different key order, don't rewrite — TOML is order-insensitive.
 
